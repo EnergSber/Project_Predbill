@@ -172,28 +172,94 @@ def test_section(section_url, section_name):
     except:
         pass
 
-    # 3. Поиск по тексту "ошибка" в любом месте
+    # 3. Поиск слова "ошибка" в уведомлениях и всплывающих сообщениях
     try:
-        error_xpath = "//*[contains(translate(text(), 'ОШИБКА', 'ошибка'), 'ошибк')]"
-        text_errors = driver.find_elements(By.XPATH, error_xpath)
-        for elem in text_errors:
+        # Основные места для сообщений об ошибках (в порядке приоритета)
+        error_locations = [
+            # 1. Уведомления (самый надежный - как в авторизации)
+            ("div.ant-notification-notice-message", "уведомление"),
+
+            # 2. Алёрты (красные рамки)
+            ("div.ant-alert-error", "алерт"),
+
+            # 3. Всплывающие сообщения
+            (".ant-message-error", "сообщение"),
+
+            # 4. Точно такой же селектор как в авторизации для "успешного входа"
+            ("body > div:nth-child(3) > div > div > div > div > div", "всплывающее окно"),
+
+            # 5. Модальные окна с ошибками
+            ("div.ant-modal-body:has(.ant-alert-error)", "модальное окно"),
+        ]
+
+        for selector, location_type in error_locations:
             try:
-                if elem.is_displayed():
-                    error_text = elem.text.strip()
-                    if error_text and error_text not in section_errors:
-                        add_error(section_name, error_text)
-                        section_errors.append(error_text)
-                        error_found = True
+                elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                for elem in elements:
+                    try:
+                        if elem.is_displayed():
+                            elem_text = elem.text.strip()
+                            if elem_text and len(elem_text) > 3:
+                                # Базовые проверки текста
+                                text_lower = elem_text.lower()
+
+                                # Ищем индикаторы ошибок
+                                has_error = (
+                                        "ошибк" in text_lower or
+                                        "error" in text_lower or
+                                        "не удалось" in text_lower or
+                                        "не удалось" in text_lower or
+                                        "сбой" in text_lower or
+                                        "failure" in text_lower or
+                                        "failed" in text_lower
+                                )
+
+                                # Исключаем положительные/нейтральные сообщения
+                                not_positive = (
+                                        "не обнаружено" not in text_lower and
+                                        "не найдено" not in text_lower and
+                                        "успешно" not in text_lower and
+                                        "success" not in text_lower and
+                                        "завершено" not in text_lower and
+                                        "completed" not in text_lower
+                                )
+
+                                if has_error and not_positive:
+                                    if elem_text not in section_errors:
+                                        print(f"⚠ Найдена ошибка в {location_type}: '{elem_text}'")
+                                        add_error(section_name, elem_text)
+                                        section_errors.append(elem_text)
+                                        error_found = True
+                    except:
+                        continue
             except:
                 continue
-    except:
-        pass
+
+    except Exception as e:
+        print(f"⚠ Ошибка при поиске текста ошибок: {e}")
 
     if not error_found:
         print("✓ Явных ошибок не найдено")
 
-    # Работа с фильтрами
+    # Работа с фильтрами (только если нет ошибок на странице)
     print("\nРабота с фильтрами:")
+
+    # Если нашли ошибки на странице, ждем пока они исчезнут
+    if error_found:
+        print("⚠ Найдены ошибки на странице, ждем их исчезновения...")
+        try:
+            # Ждем исчезновения всех найденных элементов с ошибками
+            for selector in error_selectors:
+                try:
+                    wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, selector)))
+                except:
+                    pass
+            print("✓ Ошибки исчезли или таймаут ожидания")
+        except:
+            print("⚠ Не удалось дождаться исчезновения ошибок")
+
+        # Можно также проверить, нужно ли продолжать тестирование при ошибках
+        print("⚠ Продолжаем тестирование несмотря на найденные ошибки...")
 
     # Открытие фильтра
     if not click_svg_element(FILTER_SELECTOR, "Открыть фильтр"):
@@ -321,6 +387,67 @@ sections = [
         'url': 'http://10.5.121.74/technicalControl/consumptionMvk',
         'name': 'Потребление МВК'
     },
+{
+        'url': 'http://10.5.121.74/technicalControl/heatEnergyRelease',
+        'name': 'Отпуск тепловой энергии'
+    },
+{
+        'url': 'http://10.5.121.74/technicalControl/shutdownMeteringPoint',
+        'name': 'Отключения'
+    },
+{
+        'url': 'http://10.5.121.74/technicalControl/weathersPredbill',
+        'name': 'Ввод данных с метеостанций'
+    },
+{
+        'url': 'http://10.5.121.74/technicalControl/modeCardsPredBill',
+        'name': 'Режимные карты'
+    },
+{
+        'url': 'http://10.5.121.74/integrations/asupr/statementUploadLog',
+        'name': 'АСУПР:Журнал получения ведомостей'
+    },
+{
+        'url': 'http://10.5.121.74/integrations/asupr/directoryReceiptLog',
+        'name': 'АСУПР:Журнал получения справочников'
+    },
+{
+        'url': 'http://10.5.121.74/integrations/asupr/comparisonLog',
+        'name': 'АСУПР:Журнал сопоставления справочников '
+    },
+{
+        'url': 'http://10.5.121.74/integrations/asupr/comparisonLog',
+        'name': 'АСУПР:Журнал сопоставления справочников '
+    },
+{
+        'url': 'http://10.5.121.74/integrations/elk/statementUploadLog',
+        'name': 'ЕЛК: Журнал получения ведомостей '
+    },
+{
+        'url': 'http://10.5.121.74/integrations/elk/statementUploadLog',
+        'name': 'ЕЛК: Журнал получения ведомостей '
+    },
+{
+        'url': 'http://10.5.121.74/integrations/elk/watermeterStatementUploadLogElk',
+        'name': 'ЕЛК: Получение данных из файла по ВПУ '
+    },
+{
+        'url': 'http://10.5.121.74/integration/asot/informationJournal',
+        'name': 'АСОТ: Журнал получения данных '
+    },
+{
+        'url': 'http://10.5.121.74/integration/esm/log',
+        'name': 'ЕСМ: Журнал взаимодействия '
+    },
+{
+        'url': 'http://10.5.121.74/integration/mvk/log',
+        'name': 'МВК: Журнал взаимодействия '
+    },
+{
+        'url': 'http://10.5.121.74/integration/eksnsi/log',
+        'name': 'ЕКС НСИ: Журнал обмена данными '
+    },
+
 ]
 
 # Проверяем все разделы
