@@ -6,6 +6,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 
+
 # ========== КОНФИГУРАЦИЯ ==========
 URL = 'http://10.5.121.74/login'
 USERNAME = 'predbill'
