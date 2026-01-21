@@ -1,3 +1,34 @@
+"""
+
+
+ЦЕЛЬ: Комплексная проверка работоспособности всех разделов системы Predbilling.
+
+ОПИСАНИЕ ТЕСТА:
+1. АВТОРИЗАЦИЯ:
+   - Вход в систему с учетными данными
+   - Проверка успешного входа по изменению URL и сообщениям
+
+2. ТЕСТИРОВАНИЕ РАЗДЕЛОВ (35 разделов)
+
+ДЛЯ КАЖДОГО РАЗДЕЛА ПРОВЕРЯЕТСЯ:
+1. Доступность раздела (переход по URL)
+2. Отсутствие ошибок на странице (уведомления, алерты)
+3. Работа фильтров (где применимо)
+4. Наличие данных в таблицах
+5. Умное ожидание исчезновения временных ошибок
+
+ОСОБЕННОСТИ:
+- Поддержка 4 типов таблиц: default, komm_tables, analytics_tables, catalog_tables
+- Автоматическое ожидание загрузки данных
+- Обработка всплывающих сообщений об ошибках/успехе
+- Подробный отчет с статистикой и списком ошибок
+
+
+РЕЗУЛЬТАТ: Детальный отчет о работоспособности всех разделов системы
+"""
+
+
+
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -6,7 +37,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 
-# ========== КОНФИГУРАЦИЯ ==========
+# Креды
 URL = 'http://10.5.121.74/login'
 USERNAME = 'predbill'
 PASSWORD = 'predbill'
@@ -19,8 +50,19 @@ RESET_SELECTOR = "svg[data-icon='stop']"
 TABLE_SELECTORS = {
     'default': "#root > section > section > main > form > div > div > div > div:nth-child(1) > div > div.BaseTable__table.BaseTable__table-main > div.BaseTable__body",
     'komm_tables': [
-        ".BaseTable__body",  # Первый селектор для ИС СБЫТ раздело
+        ".BaseTable__body",  # Первый селектор для ИС СБЫТ раздела
         "div.BaseTable__body"  # Второй вариант для надежности ис сбыт
+    ],
+    'analytics_tables': [  # Новый тип для раздела Аналитика и отчетность
+        ".BaseTable__body",  # Таблица со статусами отчетов
+        ".ant-table-tbody",  # Таблица с доступными отчетами
+        "div.rt-table .BaseTable__body"  # Дополнительный вариант
+    ],
+    'catalog_tables': [  # Новый тип для раздела Нормативно-Справочная информация
+        ".CatalogData",  # Блок с сообщением "Выберите справочник"
+        ".catalogList",  # Блок со списком справочников
+        ".ant-collapse-item",  # Элементы аккордеона
+        ".ant-collapse-header"  # Заголовки аккордеона
     ]
 }
 
@@ -29,7 +71,7 @@ all_errors = []
 all_results = {}
 
 
-# ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
+#Функции
 def add_error(section_name, error_text):
     """Добавить ошибку"""
     error_msg = f"{section_name}: {error_text}"
@@ -61,9 +103,59 @@ def click_svg_element(svg_selector, action_name):
         print(f"✗ Не удалось {action_name}: {e}")
         return False
 
+#Общее умное ожидание для всех разделов
+def smart_wait_for_errors_disappear():
+    """Умное ожидание исчезновения ошибок на странице"""
+    print("\n⏳ Умное ожидание исчезновения ошибок...")
 
-# ========== ОСНОВНОЙ КОД ==========
-print_header("НАЧАЛО ТЕСТИРОВАНИЯ")
+    def errors_disappeared(driver):
+        """Проверяет, что нет видимых ошибок на странице"""
+        error_check_selectors = [
+            "div.ant-notification-notice-error",
+            "div.ant-alert-error",
+            ".ant-message-error",
+            "div > div > div > div.ant-notification-notice-message",
+            "[class*='error']",
+            "[class*='danger']",
+            ".text-danger",
+            ".ant-result-error"
+        ]
+
+        for selector in error_check_selectors:
+            try:
+                elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                for elem in elements:
+                    try:
+                        if elem.is_displayed():
+                            error_text = elem.text.strip()
+                            # Если есть текст ошибки и это не положительное сообщение
+                            if error_text and len(error_text) > 3:
+                                text_lower = error_text.lower()
+                                if ("не обнаружено" not in text_lower and
+                                        "не найдено" not in text_lower and
+                                        "успешно" not in text_lower and
+                                        "успешн" not in text_lower and
+                                        "завершено" not in text_lower and
+                                        "completed" not in text_lower and
+                                        "готово" not in text_lower):
+                                    return False  # Ошибки еще есть
+                    except:
+                        continue
+            except:
+                continue
+        return True  # Ошибок нет
+
+    try:
+        # Ждем до 60 секунд (используем глобальный wait) пока ошибки не исчезнут
+        wait.until(errors_disappeared)
+        print("✅ Ошибки исчезли")
+        return True
+    except Exception as e:
+        print(f"⚠ Ошибки не исчезли за время ожидания, продолжаем...")
+        return False
+
+
+#Выполнение теста
 
 # Настройка браузера
 service = Service(ChromeDriverManager().install())
@@ -118,7 +210,7 @@ except Exception as e:
         pass
 
 
-# ========== ФУНКЦИЯ ПРОВЕРКИ РАЗДЕЛА ==========
+# Проверка раздела
 def test_section(section_url, section_name, check_filters=True, table_type='default'):
     """Проверка раздела с опциональной проверкой фильтров и выбором типа таблицы"""
     print_header(f"ПРОВЕРКА: {section_name}")
@@ -253,26 +345,14 @@ def test_section(section_url, section_name, check_filters=True, table_type='defa
 
     if not error_found:
         print("✓ Явных ошибок не найдено")
+    else:
 
-
+        # Вызываем умное ожидание для ВСЕХ разделов где найдены ошибки
+        smart_wait_for_errors_disappear()
 
     # Работа с фильтрами (только если check_filters=True)
     if check_filters:
         print("\nРабота с фильтрами:")
-
-        # Если нашли ошибки на странице, ждем пока они исчезнут
-        if error_found:
-            print("⚠ Найдены ошибки на странице, ждем их исчезновения...")
-            try:
-                # Ждем исчезновения всех найденных элементов с ошибками
-                for selector in error_selectors:
-                    try:
-                        wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, selector)))
-                    except:
-                        pass
-                print("✓ Ошибки исчезли или таймаут ожидания")
-            except:
-                print("⚠ Не удалось дождаться исчезновения ошибок")
 
         # Открытие фильтра
         if not click_svg_element(FILTER_SELECTOR, "Открыть фильтр"):
@@ -305,66 +385,162 @@ def test_section(section_url, section_name, check_filters=True, table_type='defa
             print("⚠ Надпись 'Загрузка' не найдена или не исчезла")
 
         # Выбираем стратегию поиска таблицы в зависимости от типа
-        if table_type == 'komm_tables':
-            # Для КОММ раздела ищем все таблицы
-            table_bodies = []
-            table_selectors = TABLE_SELECTORS[table_type]
+        if table_type in ['komm_tables', 'analytics_tables', 'catalog_tables']:
+            # Для этих типов ищем все элементы по списку селекторов
+            found_elements = []
+            element_selectors = TABLE_SELECTORS[table_type]
 
-            for selector in table_selectors:
+            for selector in element_selectors:
                 try:
-                    tables = driver.find_elements(By.CSS_SELECTOR, selector)
-                    for table in tables:
-                        if table.is_displayed():
-                            table_bodies.append(table)
+                    elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                    for element in elements:
+                        if element.is_displayed():
+                            found_elements.append(element)
                 except:
                     continue
 
-            if table_bodies:
-                print(f"✓ Найдено таблиц: {len(table_bodies)}")
-                total_data_rows = 0
+            if found_elements:
+                print(f"✓ Найдено элементов: {len(found_elements)}")
+                total_data_items = 0
 
-                for i, table_body in enumerate(table_bodies, 1):
-                    print(f"  Проверка таблицы #{i}...")
+                for i, element in enumerate(found_elements, 1):
+                    print(f"  Проверка элемента #{i}...")
 
-                    # Ищем строки в таблице
-                    rows = table_body.find_elements(By.CSS_SELECTOR, ".BaseTable__row, [role='row']")
-                    data_rows = []
+                    # Определяем тип элемента и адаптируем поиск данных
+                    element_text = element.text.strip()
+                    element_class = element.get_attribute("class") or ""
+                    element_tag = element.tag_name
 
-                    for row in rows:
-                        try:
-                            row_text = row.text.strip()
-                            # Проверяем что строка не пустая и содержит достаточно данных
-                            if row_text and len(row_text) > 10:
-                                data_rows.append(row_text)
-                        except:
-                            continue
+                    # Проверяем, что это за тип элемента
+                    is_table_body = "BaseTable__body" in element_class or "ant-table-tbody" in element_class
+                    is_table_row = "BaseTable__row" in element_class or "ant-table-row" in element_class or element_tag == "tr"
+                    is_catalog_item = "CatalogData" in element_class or "catalogList" in element_class or "ant-collapse" in element_class
 
-                    if data_rows:
-                        print(f"    ✓ Данные в таблице #{i}: {len(data_rows)} строк")
-                        total_data_rows += len(data_rows)
-                        # Показываем пример первой строки
-                        if data_rows:
-                            sample = data_rows[0]
-                            if len(sample) > 100:
-                                print(f"      Пример: {sample[:100]}...")
+                    if table_type == 'catalog_tables' or is_catalog_item:
+                        # Для каталогов проверяем текст самого элемента
+                        if element_text and len(element_text) > 5:
+                            # Проверяем ключевые элементы каталога
+                            if "Выберите справочник" in element_text:
+                                print(f"    ✓ Найдено: сообщение выбора справочника")
+                            elif "Справочники АСОТ" in element_text:
+                                print(f"    ✓ Найдено: раздел 'Справочники АСОТ'")
+                            elif "Справочники ЕКС НСИ" in element_text:
+                                print(f"    ✓ Найдено: раздел 'Справочники ЕКС НСИ'")
                             else:
-                                print(f"      Пример: {sample}")
-                    else:
-                        print(f"    ⚠ Таблица #{i} пуста")
+                                print(f"    ✓ Текст элемента: '{element_text[:100]}...'" if len(
+                                    element_text) > 100 else f"    ✓ Текст элемента: '{element_text}'")
+                            total_data_items += 1
+                        else:
+                            print(f"    ⚠ Элемент #{i} не содержит текста")
 
-                if total_data_rows == 0:
-                    add_error(section_name, "Нет данных в таблицах")
-                    section_errors.append("Нет данных в таблицах")
+                    elif is_table_body:
+                        # Для таблиц ищем строки внутри body
+                        if table_type == 'analytics_tables':
+                            # Для аналитики используем расширенные селекторы
+                            rows = element.find_elements(By.CSS_SELECTOR,
+                                                         ".BaseTable__row, [role='row'], tr.ant-table-row, tr, .ant-table-row")
+                        else:
+                            # Для остальных таблиц
+                            rows = element.find_elements(By.CSS_SELECTOR,
+                                                         ".BaseTable__row, [role='row'], tr")
+
+                        data_rows = []
+                        for row in rows:
+                            try:
+                                row_text = row.text.strip()
+                                if row_text and len(row_text) > 10:
+                                    data_rows.append(row_text)
+                            except:
+                                continue
+
+                        if data_rows:
+                            print(f"    ✓ Данные в таблице #{i}: {len(data_rows)} строк")
+                            total_data_items += len(data_rows)
+                            # Показываем пример первой строки
+                            if data_rows:
+                                sample = data_rows[0]
+                                if len(sample) > 100:
+                                    print(f"      Пример: {sample[:100]}...")
+                                else:
+                                    print(f"      Пример: {sample}")
+                        else:
+                            print(f"    ⚠ Таблица #{i} пуста или строки не найдены")
+
+                    elif is_table_row:
+                        # Если нашли сразу строку таблицы
+                        if element_text and len(element_text) > 10:
+                            print(f"    ✓ Найдена строка: '{element_text[:100]}...'" if len(
+                                element_text) > 100 else f"    ✓ Найдена строка: '{element_text}'")
+                            total_data_items += 1
+                        else:
+                            print(f"    ⚠ Строка #{i} не содержит данных")
+
+                    else:
+                        # Любой другой элемент
+                        if element_text and len(element_text) > 5:
+                            print(f"    ✓ Элемент содержит текст: '{element_text[:80]}...'" if len(
+                                element_text) > 80 else f"    ✓ Элемент содержит текст: '{element_text}'")
+                            total_data_items += 1
+                        else:
+                            print(f"    ⚠ Элемент #{i} не содержит значимого текста")
+
+                # Проверяем наличие данных для каждого типа
+                if total_data_items == 0:
+                    if table_type == 'catalog_tables':
+                        # Для каталогов проверяем специфические требования
+                        all_texts = [elem.text.strip() for elem in found_elements if elem.text.strip()]
+                        combined_text = " ".join(all_texts)
+
+                        has_select_message = "Выберите справочник" in combined_text
+                        has_catalog_items = "Справочники" in combined_text
+
+                        if not has_select_message or not has_catalog_items:
+                            add_error(section_name, "Каталог не содержит необходимых элементов")
+                            section_errors.append("Неполный каталог")
+                        else:
+                            print("✓ Каталог загружен, но не содержит текста в отдельных элементах")
+                    else:
+                        add_error(section_name, "Нет данных в элементах")
+                        section_errors.append("Нет данных")
                 else:
-                    print(f"✓ Всего данных во всех таблицах: {total_data_rows} строк")
+                    print(f"✓ Всего найдено данных: {total_data_items}")
+
+                    # Дополнительная проверка для аналитики
+                    if table_type == 'analytics_tables' and total_data_items > 0:
+                        print("✓ Раздел 'Аналитика и отчетность' содержит данные")
+
+                    # Дополнительная проверка для каталогов
+                    if table_type == 'catalog_tables' and total_data_items > 0:
+                        all_texts = []
+                        for elem in found_elements:
+                            if elem.text.strip():
+                                all_texts.append(elem.text.strip())
+
+                        combined_text = " ".join(all_texts)
+                        has_asot = "Справочники АСОТ" in combined_text
+                        has_eks = "Справочники ЕКС НСИ" in combined_text
+
+                        if has_asot and has_eks:
+                            print("✓ Найдены оба раздела справочников: АСОТ и ЕКС НСИ")
+                        elif has_asot:
+                            print("⚠ Найден только раздел: Справочники АСОТ")
+                        elif has_eks:
+                            print("⚠ Найден только раздел: Справочники ЕКС НСИ")
 
             else:
-                add_error(section_name, "Не найдены таблицы")
-                section_errors.append("Не найдены таблицы")
+                add_error(section_name, "Не найдены элементы")
+                section_errors.append("Элементы не найдены")
 
         else:
             # Стандартный поиск одной таблицы
             table_selector = TABLE_SELECTORS.get(table_type, TABLE_SELECTORS['default'])
+
+            # Проверяем что селектор - это строка (для обычных таблиц)
+            if not isinstance(table_selector, str):
+                add_error(section_name,
+                          f"Неверный тип селектора таблицы: ожидалась строка, получен {type(table_selector)}")
+                section_errors.append("Ошибка в селекторе таблицы")
+                return section_errors
 
             table_body = wait.until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, table_selector))
@@ -403,7 +579,7 @@ def test_section(section_url, section_name, check_filters=True, table_type='defa
     return section_errors
 
 
-# ========== ТЕСТИРОВАНИЕ РАЗДЕЛОВ ==========
+# Тест разделов
 print_header("ТЕСТИРОВАНИЕ РАЗДЕЛОВ")
 
 # Список разделов для проверки (с указанием нужно ли проверять фильтры и тип таблицы)
@@ -576,24 +752,56 @@ sections = [
         'check_filters': False,
         'table_type': 'komm_tables'  # табличное представление для ис сбыт
     },
-{
+    {
         'url': 'http://10.5.121.74/integration/komm/errors',
         'name': 'ИС СБЫТ: Журнал обмена данными- Журнал ошибок',
         'check_filters': False,
         'table_type': 'komm_tables'  # табличное представление для ис сбыт
     },
-{
+    {
         'url': 'http://10.5.121.74/integrations/application',
         'name': 'Заявки в УКУиКЭ',
         'check_filters': False,
         'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/analytics/analyticReportsPredBill',
         'name': 'Аналитика и отчетность',
         'check_filters': False,
+        'table_type': 'analytics_tables'
+    },
+{
+        'url': 'http://10.5.121.74/catalog',
+        'name': 'Нормативно-справочная информация',
+        'check_filters': False,
+        'table_type': 'catalog_tables'
+    },
+{
+        'url': 'http://10.5.121.74/administration/roles',
+        'name': 'Администрирование:Роли',
+        'check_filters': False,
         'table_type': 'default'
     },
+{
+        'url': 'http://10.5.121.74/administration/systemUsers',
+        'name': 'Администрирование:Пользователи',
+        'check_filters': False,
+        'table_type': 'default'
+    },
+{
+        'url': 'http://10.5.121.74/administration/uiElements',
+        'name': 'Администрирование:Элементы интерфейса',
+        'check_filters': False,
+        'table_type': 'default'
+    },
+{
+        'url': 'http://10.5.121.74/administration/cronRegistry',
+        'name': 'Администрирование:Планировщик',
+        'check_filters': False,
+        'table_type': 'default'
+    },
+
+
 ]
 
 # Проверяем все разделы
@@ -668,4 +876,10 @@ print(f"\n⏱ Время выполнения: {time.strftime('%H:%M:%S')}")
 print(f"{'=' * 80}")
 
 # input("\nНажмите Enter для закрытия браузера...")
-driver.quit()
+try:
+    print("\nЗакрытие браузера...")
+    driver.quit()
+    print("✓ Браузер успешно закрыт")
+except Exception as e:
+    print(f"⚠ Не удалось закрыть браузер: {e}")
+    print("⚠ Проверьте, возможно браузер уже закрыт или произошла ошибка")
