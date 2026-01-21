@@ -6,7 +6,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 
-
 # ========== КОНФИГУРАЦИЯ ==========
 URL = 'http://10.5.121.74/login'
 USERNAME = 'predbill'
@@ -15,7 +14,15 @@ PASSWORD = 'predbill'
 # Глобальные селекторы (одинаковые для всех разделов)
 FILTER_SELECTOR = "svg[data-icon='filter']"
 RESET_SELECTOR = "svg[data-icon='stop']"
-TABLE_SELECTOR = "#root > section > section > main > form > div > div > div > div:nth-child(1) > div > div.BaseTable__table.BaseTable__table-main > div.BaseTable__body"
+
+# Селекторы таблиц для разных типов разделов
+TABLE_SELECTORS = {
+    'default': "#root > section > section > main > form > div > div > div > div:nth-child(1) > div > div.BaseTable__table.BaseTable__table-main > div.BaseTable__body",
+    'komm_tables': [
+        ".BaseTable__body",  # Первый селектор для ИС СБЫТ раздело
+        "div.BaseTable__body"  # Второй вариант для надежности ис сбыт
+    ]
+}
 
 # Хранение результатов
 all_errors = []
@@ -112,9 +119,15 @@ except Exception as e:
 
 
 # ========== ФУНКЦИЯ ПРОВЕРКИ РАЗДЕЛА ==========
-def test_section(section_url, section_name):
-    """Проверка раздела"""
+def test_section(section_url, section_name, check_filters=True, table_type='default'):
+    """Проверка раздела с опциональной проверкой фильтров и выбором типа таблицы"""
     print_header(f"ПРОВЕРКА: {section_name}")
+    if not check_filters:
+        print("⚠ РАЗДЕЛ БЕЗ ПРОВЕРКИ ФИЛЬТРОВ")
+
+    if table_type != 'default':
+        print(f"⚠ ТИП ТАБЛИЦЫ: {table_type}")
+
     section_errors = []
 
     # Переход в раздел
@@ -241,35 +254,37 @@ def test_section(section_url, section_name):
     if not error_found:
         print("✓ Явных ошибок не найдено")
 
-    # Работа с фильтрами (только если нет ошибок на странице)
-    print("\nРабота с фильтрами:")
 
-    # Если нашли ошибки на странице, ждем пока они исчезнут
-    if error_found:
-        print("⚠ Найдены ошибки на странице, ждем их исчезновения...")
-        try:
-            # Ждем исчезновения всех найденных элементов с ошибками
-            for selector in error_selectors:
-                try:
-                    wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, selector)))
-                except:
-                    pass
-            print("✓ Ошибки исчезли или таймаут ожидания")
-        except:
-            print("⚠ Не удалось дождаться исчезновения ошибок")
 
-        # Можно также проверить, нужно ли продолжать тестирование при ошибках
-        print("⚠ Продолжаем тестирование несмотря на найденные ошибки...")
+    # Работа с фильтрами (только если check_filters=True)
+    if check_filters:
+        print("\nРабота с фильтрами:")
 
-    # Открытие фильтра
-    if not click_svg_element(FILTER_SELECTOR, "Открыть фильтр"):
-        add_error(section_name, "Не удалось открыть фильтр")
-        section_errors.append("Ошибка открытия фильтра")
+        # Если нашли ошибки на странице, ждем пока они исчезнут
+        if error_found:
+            print("⚠ Найдены ошибки на странице, ждем их исчезновения...")
+            try:
+                # Ждем исчезновения всех найденных элементов с ошибками
+                for selector in error_selectors:
+                    try:
+                        wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, selector)))
+                    except:
+                        pass
+                print("✓ Ошибки исчезли или таймаут ожидания")
+            except:
+                print("⚠ Не удалось дождаться исчезновения ошибок")
 
-    # Сброс фильтров
-    if not click_svg_element(RESET_SELECTOR, "Сбросить фильтры"):
-        add_error(section_name, "Не удалось сбросить фильтры")
-        section_errors.append("Ошибка сброса фильтров")
+        # Открытие фильтра
+        if not click_svg_element(FILTER_SELECTOR, "Открыть фильтр"):
+            add_error(section_name, "Не удалось открыть фильтр")
+            section_errors.append("Ошибка открытия фильтра")
+
+        # Сброс фильтров
+        if not click_svg_element(RESET_SELECTOR, "Сбросить фильтры"):
+            add_error(section_name, "Не удалось сбросить фильтры")
+            section_errors.append("Ошибка сброса фильтров")
+    else:
+        print("\n⚠ Раздел без фильтров - пропускаем проверку фильтров")
 
     # Проверка данных в таблице
     print("\nПроверка данных в таблице...")
@@ -289,35 +304,97 @@ def test_section(section_url, section_name):
         except:
             print("⚠ Надпись 'Загрузка' не найдена или не исчезла")
 
-        table_body = wait.until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, TABLE_SELECTOR))
-        )
+        # Выбираем стратегию поиска таблицы в зависимости от типа
+        if table_type == 'komm_tables':
+            # Для КОММ раздела ищем все таблицы
+            table_bodies = []
+            table_selectors = TABLE_SELECTORS[table_type]
 
-        # Ищем строки в таблице
-        rows = table_body.find_elements(By.CSS_SELECTOR, ".BaseTable__row, tr")
-        data_rows = []
+            for selector in table_selectors:
+                try:
+                    tables = driver.find_elements(By.CSS_SELECTOR, selector)
+                    for table in tables:
+                        if table.is_displayed():
+                            table_bodies.append(table)
+                except:
+                    continue
 
-        for row in rows:
-            try:
-                row_text = row.text.strip()
-                # Проверяем что строка не пустая и содержит достаточно данных
-                if row_text and len(row_text) > 10:
-                    data_rows.append(row_text)
-            except:
-                continue
+            if table_bodies:
+                print(f"✓ Найдено таблиц: {len(table_bodies)}")
+                total_data_rows = 0
 
-        if data_rows:
-            print(f"✓ Данные в таблице: {len(data_rows)} строк")
-            # Показываем пример первой строки
-            if data_rows:
-                sample = data_rows[0]
-                if len(sample) > 100:
-                    print(f"  Пример: {sample[:100]}...")
+                for i, table_body in enumerate(table_bodies, 1):
+                    print(f"  Проверка таблицы #{i}...")
+
+                    # Ищем строки в таблице
+                    rows = table_body.find_elements(By.CSS_SELECTOR, ".BaseTable__row, [role='row']")
+                    data_rows = []
+
+                    for row in rows:
+                        try:
+                            row_text = row.text.strip()
+                            # Проверяем что строка не пустая и содержит достаточно данных
+                            if row_text and len(row_text) > 10:
+                                data_rows.append(row_text)
+                        except:
+                            continue
+
+                    if data_rows:
+                        print(f"    ✓ Данные в таблице #{i}: {len(data_rows)} строк")
+                        total_data_rows += len(data_rows)
+                        # Показываем пример первой строки
+                        if data_rows:
+                            sample = data_rows[0]
+                            if len(sample) > 100:
+                                print(f"      Пример: {sample[:100]}...")
+                            else:
+                                print(f"      Пример: {sample}")
+                    else:
+                        print(f"    ⚠ Таблица #{i} пуста")
+
+                if total_data_rows == 0:
+                    add_error(section_name, "Нет данных в таблицах")
+                    section_errors.append("Нет данных в таблицах")
                 else:
-                    print(f"  Пример: {sample}")
+                    print(f"✓ Всего данных во всех таблицах: {total_data_rows} строк")
+
+            else:
+                add_error(section_name, "Не найдены таблицы")
+                section_errors.append("Не найдены таблицы")
+
         else:
-            add_error(section_name, "Нет данных в таблице")
-            section_errors.append("Нет данных в таблице")
+            # Стандартный поиск одной таблицы
+            table_selector = TABLE_SELECTORS.get(table_type, TABLE_SELECTORS['default'])
+
+            table_body = wait.until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, table_selector))
+            )
+
+            # Ищем строки в таблице
+            rows = table_body.find_elements(By.CSS_SELECTOR, ".BaseTable__row, tr")
+            data_rows = []
+
+            for row in rows:
+                try:
+                    row_text = row.text.strip()
+                    # Проверяем что строка не пустая и содержит достаточно данных
+                    if row_text and len(row_text) > 10:
+                        data_rows.append(row_text)
+                except:
+                    continue
+
+            if data_rows:
+                print(f"✓ Данные в таблице: {len(data_rows)} строк")
+                # Показываем пример первой строки
+                if data_rows:
+                    sample = data_rows[0]
+                    if len(sample) > 100:
+                        print(f"  Пример: {sample[:100]}...")
+                    else:
+                        print(f"  Пример: {sample}")
+            else:
+                add_error(section_name, "Нет данных в таблице")
+                section_errors.append("Нет данных в таблице")
 
     except Exception as e:
         add_error(section_name, f"Ошибка проверки таблицы: {e}")
@@ -329,167 +406,255 @@ def test_section(section_url, section_name):
 # ========== ТЕСТИРОВАНИЕ РАЗДЕЛОВ ==========
 print_header("ТЕСТИРОВАНИЕ РАЗДЕЛОВ")
 
-# Список разделов для проверки
+# Список разделов для проверки (с указанием нужно ли проверять фильтры и тип таблицы)
 sections = [
     {
         'url': 'http://10.5.121.74/commercialControl/billingStatements',
-        'name': 'Реестр ведомостей'
+        'name': 'Реестр ведомостей',
+        'check_filters': True,
+        'table_type': 'default'
     },
     {
         'url': 'http://10.5.121.74/commercialControl/watermeterStatements',
-        'name': 'Реестр показаний водомеров'
+        'name': 'Реестр показаний водомеров',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/commercialControl/watermeterStatementUploadLog',
-        'name': 'Загрузка файла с данными по ВПУ'
+        'name': 'Загрузка файла с данными по ВПУ',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/commercialControl/blocksManagement',
-        'name': 'Управление блокировками'
+        'name': 'Управление блокировками',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/commercialControl/variableIntervals',
-        'name': 'Варьируемые интервалы'
+        'name': 'Варьируемые интервалы',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/predbilling/accountingObjectsPredBill',
-        'name': 'Объекты теплосети'
+        'name': 'Объекты теплосети',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/predbilling/commercialNodes',
-        'name': 'Узлы учета'
+        'name': 'Узлы учета',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/predbilling/certificates',
-        'name': 'Реестр АВЭ|АПП'
+        'name': 'Реестр АВЭ|АПП',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/predbilling/meteringDevicesPredBill',
-        'name': 'Приборы учета'
+        'name': 'Приборы учета',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/predbilling/simCardsPredBill',
-        'name': 'Sim-карты'
+        'name': 'Sim-карты',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/predbilling/transmissionDevicesPredBill',
-        'name': 'УСПД'
+        'name': 'УСПД',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/predbilling/cabineUspdsPredBill',
-        'name': 'Шкаф УСПД'
+        'name': 'Шкаф УСПД',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/technicalControl/meteringPointsPredBill',
-        'name': 'Потребление'
+        'name': 'Потребление',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/technicalControl/consumptionMvk',
-        'name': 'Потребление МВК'
+        'name': 'Потребление МВК',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/technicalControl/heatEnergyRelease',
-        'name': 'Отпуск тепловой энергии'
+        'name': 'Отпуск тепловой энергии',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/technicalControl/shutdownMeteringPoint',
-        'name': 'Отключения'
+        'name': 'Отключения',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/technicalControl/weathersPredbill',
-        'name': 'Ввод данных с метеостанций'
+        'name': 'Ввод данных с метеостанций',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/technicalControl/modeCardsPredBill',
-        'name': 'Режимные карты'
+        'name': 'Режимные карты',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/integrations/asupr/statementUploadLog',
-        'name': 'АСУПР:Журнал получения ведомостей'
+        'name': 'АСУПР:Журнал получения ведомостей',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/integrations/asupr/directoryReceiptLog',
-        'name': 'АСУПР:Журнал получения справочников'
+        'name': 'АСУПР:Журнал получения справочников',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/integrations/asupr/comparisonLog',
-        'name': 'АСУПР:Журнал сопоставления справочников '
+        'name': 'АСУПР:Журнал сопоставления справочников',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
-        'url': 'http://10.5.121.74/integrations/asupr/comparisonLog',
-        'name': 'АСУПР:Журнал сопоставления справочников '
-    },
-{
+    {
         'url': 'http://10.5.121.74/integrations/elk/statementUploadLog',
-        'name': 'ЕЛК: Журнал получения ведомостей '
+        'name': 'ЕЛК: Журнал получения ведомостей',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
-        'url': 'http://10.5.121.74/integrations/elk/statementUploadLog',
-        'name': 'ЕЛК: Журнал получения ведомостей '
-    },
-{
+    {
         'url': 'http://10.5.121.74/integrations/elk/watermeterStatementUploadLogElk',
-        'name': 'ЕЛК: Получение данных из файла по ВПУ '
+        'name': 'ЕЛК: Получение данных из файла по ВПУ',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/integration/asot/informationJournal',
-        'name': 'АСОТ: Журнал получения данных '
+        'name': 'АСОТ: Журнал получения данных',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/integration/esm/log',
-        'name': 'ЕСМ: Журнал взаимодействия '
+        'name': 'ЕСМ: Журнал взаимодействия',
+        'check_filters': True,
+        'table_type': 'default'
     },
-{
+    {
         'url': 'http://10.5.121.74/integration/mvk/log',
-        'name': 'МВК: Журнал взаимодействия '
+        'name': 'МВК: Журнал взаимодействия',
+        'check_filters': True,
+        'table_type': 'default'
+    },
+    {
+        'url': 'http://10.5.121.74/integration/eksnsi/log',
+        'name': 'ЕКС НСИ: Журнал обмена данными',
+        'check_filters': True,
+        'table_type': 'default'
+    },
+    {
+        'url': 'http://10.5.121.74/integration/komm/logs',
+        'name': 'ИС СБЫТ: Журнал обмена данными- Общая статистика',
+        'check_filters': False,
+        'table_type': 'komm_tables'  # табличное представление для ис сбыт
     },
 {
-        'url': 'http://10.5.121.74/integration/eksnsi/log',
-        'name': 'ЕКС НСИ: Журнал обмена данными '
+        'url': 'http://10.5.121.74/integration/komm/errors',
+        'name': 'ИС СБЫТ: Журнал обмена данными- Журнал ошибок',
+        'check_filters': False,
+        'table_type': 'komm_tables'  # табличное представление для ис сбыт
     },
-
+{
+        'url': 'http://10.5.121.74/integrations/application',
+        'name': 'Заявки в УКУиКЭ',
+        'check_filters': False,
+        'table_type': 'default'
+    },
+{
+        'url': 'http://10.5.121.74/analytics/analyticReportsPredBill',
+        'name': 'Аналитика и отчетность',
+        'check_filters': False,
+        'table_type': 'default'
+    },
 ]
 
 # Проверяем все разделы
 for section in sections:
-    errors = test_section(section['url'], section['name'])
+    check_filters = section.get('check_filters', True)  # по умолчанию True
+    table_type = section.get('table_type', 'default')  # по умолчанию 'default'
+
+    errors = test_section(section['url'], section['name'], check_filters, table_type)
 
     # Сохраняем результаты
     all_results[section['name']] = {
         'errors': errors,
         'error_count': len(errors),
         'url': section['url'],
+        'check_filters': check_filters,
+        'table_type': table_type,
         'timestamp': time.strftime('%H:%M:%S')
     }
 
-# ========== ФИНАЛЬНЫЙ ОТЧЕТ ==========
-print_header("ФИНАЛЬНЫЙ ОТЧЕТ")
+# Финальный принт
+print_header("Финальный принт")
 
 total_errors = len(all_errors)
 total_sections = len(all_results)
 sections_with_errors = sum(1 for result in all_results.values() if result['error_count'] > 0)
 sections_ok = total_sections - sections_with_errors
 
+# Подсчет разделов по типу проверки
+sections_with_filters = sum(1 for result in all_results.values() if result.get('check_filters', True))
+sections_without_filters = total_sections - sections_with_filters
+
+# Подсчет разделов по типу таблицы
+sections_default_table = sum(1 for result in all_results.values() if result.get('table_type', 'default') == 'default')
+sections_komm_table = sum(1 for result in all_results.values() if result.get('table_type') == 'komm_tables')
+
 print(f"\n📊 ОБЩАЯ СТАТИСТИКА:")
-print(f"   • Проверено разделов: {total_sections}")
+print(f"   • Всего проверено разделов: {total_sections}")
+print(f"   • Разделов с проверкой фильтров: {sections_with_filters}")
+print(f"   • Разделов без проверки фильтров: {sections_without_filters}")
+print(f"   • Разделов со стандартными таблицами: {sections_default_table}")
+print(f"   • Разделов с КОММ таблицами: {sections_komm_table}")
 print(f"   • Без ошибок: {sections_ok}")
 print(f"   • С ошибками: {sections_with_errors}")
 print(f"   • Всего ошибок: {total_errors}")
 
 print(f"\n📋 РЕЗУЛЬТАТЫ ПО РАЗДЕЛАМ:")
-print(f"{'─' * 50}")
+print(f"{'─' * 60}")
 
 for section_name, result in all_results.items():
     status = "✅ OK" if result['error_count'] == 0 else f"❌ {result['error_count']} ошиб."
-    print(f"   • {section_name:30} {status}")
+    filter_status = "🔍" if result.get('check_filters', True) else "📋"
+    table_icon = "📊" if result.get('table_type', 'default') == 'default' else "📈"
+    print(f"   • {filter_status}{table_icon} {section_name:32} {status}")
 
 if total_errors > 0:
     print(f"\n⚠ СПИСОК ОШИБОК ({total_errors}):")
-    print(f"{'─' * 70}")
+    print(f"{'─' * 80}")
     for i, error in enumerate(all_errors, 1):
         print(f"   {i:2}. {error}")
 
-print(f"\n{'═' * 60}")
+print(f"\n{'═' * 80}")
 
 # Итоговый вывод
 if total_errors == 0:
@@ -500,7 +665,7 @@ else:
     print(f"⚠ Требуется исправление")
 
 print(f"\n⏱ Время выполнения: {time.strftime('%H:%M:%S')}")
-print(f"{'=' * 60}")
+print(f"{'=' * 80}")
 
-#input("\nНажмите Enter для закрытия браузера...")
+# input("\nНажмите Enter для закрытия браузера...")
 driver.quit()
