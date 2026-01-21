@@ -36,6 +36,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 import time
+from colorama import init, Fore, Back, Style
+init(autoreset=True)
 
 # Креды
 URL = 'http://10.5.121.74/login'
@@ -866,13 +868,14 @@ print(f"\n{'═' * 80}")
 
 # Итоговый вывод
 if total_errors == 0:
-    print("🎉 ВСЕ РАЗДЕЛЫ РАБОТАЮТ КОРРЕКТНО!")
-    print("✅ Система готова к использованию")
+    print(f"{Fore.GREEN}{Style.BRIGHT}🎉 ВСЕ РАЗДЕЛЫ РАБОТАЮТ КОРРЕКТНО!")
+    print(f"{Fore.GREEN}✅ Система готова к использованию{Style.RESET_ALL}")
 else:
-    print(f"🎯 НАЙДЕНО ОШИБОК: {total_errors}")
-    print(f"⚠ Требуется исправление")
+    # КРАСНЫЙ - есть ошибки
+    print(f"{Fore.RED}{Style.BRIGHT}🎯 НАЙДЕНО ОШИБОК: {total_errors}")
+    print(f"{Fore.RED}⚠ Требуется исправление{Style.RESET_ALL}")
 
-print(f"\n⏱ Время выполнения: {time.strftime('%H:%M:%S')}")
+
 print(f"{'=' * 80}")
 
 # input("\nНажмите Enter для закрытия браузера...")
