@@ -207,6 +207,14 @@ def test_section(section_url, section_name):
     # Проверка данных в таблице
     print("\nПроверка данных в таблице...")
     try:
+        # Ждем пока исчезнет надпись "Обновление сопоставленных МВК"
+        try:
+            wait.until(EC.invisibility_of_element_located((By.XPATH,
+                                                           "//*[contains(text(), 'Обновление сопоставленных МВК')]")))
+            print("✓ 'Обновление сопоставленных МВК' завершено")
+        except:
+            print("⚠ Надпись 'Обновление сопоставленных МВК' не найдена или не исчезла")
+
         # Ждем пока исчезнет надпись "Загрузка..."
         try:
             wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, "div.ant-spin-text")))
@@ -283,6 +291,34 @@ sections = [
 {
         'url': 'http://10.5.121.74/predbilling/commercialNodes',
         'name': 'Узлы учета'
+    },
+{
+        'url': 'http://10.5.121.74/predbilling/certificates',
+        'name': 'Реестр АВЭ|АПП'
+    },
+{
+        'url': 'http://10.5.121.74/predbilling/meteringDevicesPredBill',
+        'name': 'Приборы учета'
+    },
+{
+        'url': 'http://10.5.121.74/predbilling/simCardsPredBill',
+        'name': 'Sim-карты'
+    },
+{
+        'url': 'http://10.5.121.74/predbilling/transmissionDevicesPredBill',
+        'name': 'УСПД'
+    },
+{
+        'url': 'http://10.5.121.74/predbilling/cabineUspdsPredBill',
+        'name': 'Шкаф УСПД'
+    },
+{
+        'url': 'http://10.5.121.74/technicalControl/meteringPointsPredBill',
+        'name': 'Потребление'
+    },
+{
+        'url': 'http://10.5.121.74/technicalControl/consumptionMvk',
+        'name': 'Потребление МВК'
     },
 ]
 
