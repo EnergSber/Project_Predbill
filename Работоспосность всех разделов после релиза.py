@@ -135,7 +135,7 @@ def smart_wait_for_errors_disappear():
     print(f"\n⏳ Умное ожидание исчезновения ошибок...")
 
     start_wait_time = time.time()
-    max_wait_time = 15
+    max_wait_time = 5
 
     def try_close_error():
         """Пытается закрыть ошибку по крестику"""
