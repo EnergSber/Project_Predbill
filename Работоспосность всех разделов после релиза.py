@@ -266,7 +266,7 @@ def smart_wait_for_errors_disappear():
 service = Service(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=service)
 driver.maximize_window()
-wait = WebDriverWait(driver, 30)
+wait = WebDriverWait(driver, 60)
 
 # Вход в систему
 print_header("АВТОРИЗАЦИЯ")
