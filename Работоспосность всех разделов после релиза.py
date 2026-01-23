@@ -38,6 +38,8 @@ from colorama import init, Fore, Back, Style
 init(autoreset=True)
 # Хранение времени загрузки разделов
 load_times = {}  # {section_name: {'start': time, 'end': time, 'duration': seconds}}
+# Начало отсчета общего времени выполнения
+total_script_start_time = time.time()
 
 print("=" * 60)
 print("Запуск")
@@ -913,7 +915,7 @@ if load_times:
         print(f"\n⏱️  СТАТИСТИКА ВРЕМЕНИ ЗАГРУЗКИ (после сброса фильтров):")
         print(f"{'─' * 40}")
         print(f"   • Общее время загрузки: {total_duration:.1f} сек")
-        print(f"   • Среднее время на раздел: {avg_duration:.1f} сек")
+        #print(f"   • Среднее время на раздел: {avg_duration:.1f} сек")
         print(f"   • Самый долгий раздел: {max_section} ({max_duration:.1f} сек)")
 
         # Выводим 5 самых долгих разделов
@@ -999,6 +1001,17 @@ else:
     print(f"{Fore.RED}⚠ Требуется исправление{Style.RESET_ALL}")
 
 print(f"{'=' * 80}")
+
+# Подсчет общего времени выполнения скрипта
+total_script_end_time = time.time()
+total_script_duration = total_script_end_time - total_script_start_time
+
+minutes = int(total_script_duration // 60)
+seconds = total_script_duration % 60
+
+print(f"\n{'=' * 60}")
+print(f"ОБЩЕЕ ВРЕМЯ ВЫПОЛНЕНИЯ СКРИПТА: {minutes} мин {seconds:.1f} сек")
+print(f"{'=' * 60}")
 
 # Закрытие браузера
 try:
