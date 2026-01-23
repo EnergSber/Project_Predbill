@@ -13,6 +13,7 @@
 3. Работа фильтров (где применимо)
 4. Наличие данных в таблицах
 5. Умное ожидание исчезновения временных ошибок
+6. Считаем время загрузки данных в каждом разделе
 
 ОСОБЕННОСТИ:
 - Поддержка 4 типов таблиц: default, komm_tables, analytics_tables, catalog_tables
@@ -35,6 +36,8 @@ from colorama import init, Fore, Back, Style
 
 # Инициализация colorama для цветного вывода
 init(autoreset=True)
+# Хранение времени загрузки разделов
+load_times = {}  # {section_name: {'start': time, 'end': time, 'duration': seconds}}
 
 print("=" * 60)
 print("Запуск")
@@ -198,6 +201,85 @@ def smart_wait_for_errors_disappear():
             print(f"  ⚠ Ошибка при попытке закрыть ошибку: {e}")
             return False
 
+
+def wait_for_page_load(section_name):
+    """Ожидание полной загрузки страницы с отслеживанием времени"""
+    print("\n⏳ Ожидание загрузки данных...")
+
+    load_start = time.time()
+
+    try:
+        # Список CSS-селекторов для поиска элементов загрузки
+        loading_selectors = [
+            # Спиннер загрузки (кружок)
+            "div.ant-spin.ant-spin-spinning",
+            "div.ant-spin-spinning",
+
+            # Текст "Загрузка..." в спиннере
+            "div.ant-spin-text",
+
+            # Иконка загрузки (крутящийся SVG)
+            "span.anticon-loading.anticon-spin",
+            "span.ant-spin-dot",
+
+            # Контейнер спиннера
+            "div.ant-spin-container"
+        ]
+
+        # Проверяем каждый селектор
+        for selector in loading_selectors:
+            try:
+                elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                for element in elements:
+                    try:
+                        if element.is_displayed():
+                            element_class = element.get_attribute("class") or ""
+
+                            # Если это спиннер
+                            if ("ant-spin-spinning" in element_class or
+                                    "anticon-spin" in element_class):
+                                print(f"  ⏳ Найден спиннер загрузки, ожидаем...")
+
+                                # Ждем пока элемент станет невидимым
+                                wait.until(EC.invisibility_of_element(element))
+                                print(f"  ✓ Спиннер исчез")
+
+                    except Exception as e:
+                        continue
+            except Exception as e:
+                continue
+
+        # Дополнительная проверка по XPath для текстовых сообщений в спиннере
+        text_messages = [
+            "Загрузка",
+            "Обновление сопоставленных МВК",
+            "Обновление данных"
+        ]
+
+        for text_msg in text_messages:
+            try:
+                elements = driver.find_elements(By.XPATH,
+                                                f"//div[contains(@class, 'ant-spin-text') and contains(text(), '{text_msg}')]")
+                for element in elements:
+                    try:
+                        if element.is_displayed():
+                            print(f"  ⏳ Ожидание исчезновения '{text_msg}'...")
+                            wait.until(EC.invisibility_of_element(element))
+                            print(f"  ✓ '{text_msg}' исчез")
+                    except:
+                        continue
+            except:
+                continue
+
+        load_duration = time.time() - load_start
+        print(f"✓ Загрузка данных завершена за {load_duration:.1f} секунд")
+
+        return load_duration
+
+    except Exception as e:
+        print(f"  ⚠ Ошибка при ожидании загрузки: {e}")
+        return time.time() - load_start
+
     def check_for_persistent_errors():
         """Проверяет наличие стойких ошибок, которые можно закрыть"""
         error_check_selectors = [
@@ -294,6 +376,10 @@ def test_section(section_url, section_name, check_filters=True, table_type='defa
     """Проверка раздела с опциональной проверкой фильтров и выбором типа таблицы"""
     print_header(f"ПРОВЕРКА: {section_name}")
 
+    # Записываем время начала загрузки раздела (общее время тестирования раздела)
+    section_start_time = time.time()
+    load_times[section_name] = {'section_start': section_start_time}
+
     section_errors = []
 
     # Переход в раздел
@@ -304,6 +390,8 @@ def test_section(section_url, section_name, check_filters=True, table_type='defa
         time.sleep(0.5)
     except Exception as e:
         section_errors = add_error(section_name, f"Не удалось перейти: {e}", section_errors)
+        load_times[section_name]['section_end'] = time.time()
+        load_times[section_name]['total_duration'] = load_times[section_name]['section_end'] - section_start_time
         return section_errors
 
     # Проверка ошибок на странице
@@ -344,6 +432,8 @@ def test_section(section_url, section_name, check_filters=True, table_type='defa
         smart_wait_for_errors_disappear()
 
     # Работа с фильтрами
+    filter_reset_time = None  # Время начала сброса фильтров
+
     if check_filters:
         print("\nРабота с фильтрами:")
 
@@ -388,8 +478,9 @@ def test_section(section_url, section_name, check_filters=True, table_type='defa
             time.sleep(0.5)
             smart_wait_for_errors_disappear()
 
-        # Сброс фильтров
+        # Сброс фильтров - ЗАПОМИНАЕМ ВРЕМЯ НАЧАЛА СБРОСА
         reset_clicked = False
+        filter_reset_time = time.time()  # Запоминаем время начала сброса
 
         for attempt in range(max_attempts):
             if click_svg_element(RESET_SELECTOR, f"Сбросить фильтры (попытка {attempt + 1})"):
@@ -421,103 +512,35 @@ def test_section(section_url, section_name, check_filters=True, table_type='defa
 
         if not reset_clicked:
             section_errors = add_error(section_name, "Не удалось сбросить фильтры", section_errors)
-        else:
-            time.sleep(0.5)
-
-            # Ждем пока исчезнет спиннер загрузки (кружок)
-            try:
-                wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, "div.ant-spin.ant-spin-spinning")))
-                print(f"✓ Спиннер загрузки исчез")
-            except Exception as e:
-                print(f"⚠ Спиннер загрузки не найден или не исчез: {e}")
-
-            # Ждем пока исчезнет надпись "Загрузка..." в спиннере
-            try:
-                wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, "div.ant-spin-text")))
-                print(f"✓ Текст 'Загрузка...' исчез")
-            except Exception as e:
-                print(f"⚠ Текст 'Загрузка...' не найден или не исчез: {e}")
-
-            # Ждем пока исчезнет надпись "Обновление сопоставленных МВК" в спиннере
-            try:
-                # Ищем конкретно элемент с текстом в спиннере
-                wait.until(EC.invisibility_of_element_located((By.XPATH,
-                                                               "//div[contains(@class, 'ant-spin-text') and contains(text(), 'Обновление сопоставленных МВК')]")))
-                print(f"✓ 'Обновление сопоставленных МВК' завершено")
-            except Exception as e:
-                print(f"⚠ Надпись 'Обновление сопоставленных МВК' не найдена или не исчезла: {e}")
+            filter_reset_time = None  # Сбрасываем время, если сброс не удался
 
     # Проверка данных в таблице
     print("\nПроверка данных в таблице...")
+
+    # Теперь ждем загрузку данных ПОСЛЕ сброса фильтров
+    # Если был сброс фильтров, начинаем отсчет времени с момента сброса
+    if check_filters and filter_reset_time:
+        print(f"⏳ Ожидание загрузки после сброса фильтров...")
+        load_start_time = filter_reset_time
+    else:
+        load_start_time = time.time()
+
+    load_duration = wait_for_page_load(section_name)
+
+    # Записываем время окончания загрузки
+    load_end_time = time.time()
+
+    # Сохраняем время загрузки после сброса
+    load_times[section_name]['load_start'] = load_start_time
+    load_times[section_name]['load_end'] = load_end_time
+    load_times[section_name]['load_duration'] = load_duration
+
+    # Также сохраняем общее время тестирования раздела
+    section_end_time = time.time()
+    load_times[section_name]['section_end'] = section_end_time
+    load_times[section_name]['total_duration'] = section_end_time - section_start_time
+
     try:
-        # Дополнительная проверка - ждем исчезновения всех индикаторов загрузки перед проверкой таблицы
-        try:
-            # Список CSS-селекторов для поиска элементов загрузки (только по селекторам, не по тексту)
-            loading_selectors = [
-                # Спиннер загрузки (кружок)
-                "div.ant-spin.ant-spin-spinning",
-                "div.ant-spin-spinning",
-
-                # Текст "Загрузка..." в спиннере
-                "div.ant-spin-text",
-
-                # Иконка загрузки (крутящийся SVG)
-                "span.anticon-loading.anticon-spin",
-                "span.ant-spin-dot",
-
-                # Контейнер спиннера
-                "div.ant-spin-container"
-            ]
-
-            # Проверяем каждый селектор
-            for selector in loading_selectors:
-                try:
-                    elements = driver.find_elements(By.CSS_SELECTOR, selector)
-                    for element in elements:
-                        try:
-                            # Проверяем, отображается ли элемент
-                            if element.is_displayed():
-                                element_class = element.get_attribute("class") or ""
-
-                                # Если это спиннер
-                                if ("ant-spin-spinning" in element_class or
-                                        "anticon-spin" in element_class):
-                                    print(f"  ⏳ Ожидание исчезновения спиннера...")
-
-                                    # Ждем пока элемент станет невидимым
-                                    wait.until(EC.invisibility_of_element(element))
-                                    print(f"  ✓ Спиннер исчез")
-
-                        except Exception as e:
-                            continue
-                except Exception as e:
-                    continue
-
-            # Дополнительная проверка по XPath для текстовых сообщений в спиннере
-            text_messages = [
-                "Загрузка",
-                "Обновление сопоставленных МВК",
-                "Обновление данных"
-            ]
-
-            for text_msg in text_messages:
-                try:
-                    elements = driver.find_elements(By.XPATH,
-                                                    f"//div[contains(@class, 'ant-spin-text') and contains(text(), '{text_msg}')]")
-                    for element in elements:
-                        try:
-                            if element.is_displayed():
-                                print(f"  ⏳ Ожидание исчезновения текста '{text_msg}'...")
-                                wait.until(EC.invisibility_of_element(element))
-                                print(f"  ✓ Текст '{text_msg}' исчез")
-                        except:
-                            continue
-                except:
-                    continue
-
-        except Exception as e:
-            print(f"  ⚠ Ошибка при проверке индикаторов загрузки: {e}")
-
         # Выбираем стратегию поиска таблицы в зависимости от типа
         if table_type in ['komm_tables', 'analytics_tables', 'catalog_tables']:
             found_elements = []
@@ -763,6 +786,12 @@ sections = [
         'check_filters': True,
         'table_type': 'default'
     },
+{
+        'url': 'http://10.5.121.74/integrations/assdPsd/statementUploadLog',
+        'name': 'АССД ПСД: Журнал получения ведомостей',
+        'check_filters': True,
+        'table_type': 'default'
+    },
     {
         'url': 'http://10.5.121.74/integration/eksnsi/log',
         'name': 'ЕКС НСИ: Журнал обмена данными',
@@ -864,16 +893,57 @@ for section_name, result in all_results.items():
 
 print(f"   • Всего уникальных ошибок: {len(all_unique_errors_set)}")
 
+# Статистика по времени загрузки
+if load_times:
+    # Используем load_duration (время загрузки после сброса фильтров)
+    load_durations = [info.get('load_duration', 0) for info in load_times.values() if info.get('load_duration', 0) > 0]
+
+    if load_durations:
+        total_duration = sum(load_durations)
+        avg_duration = total_duration / len(load_durations)
+        max_duration = max(load_durations)
+
+        # Находим раздел с максимальным временем загрузки
+        max_section = None
+        for section_name, info in load_times.items():
+            if info.get('load_duration', 0) == max_duration:
+                max_section = section_name
+                break
+
+        print(f"\n⏱️  СТАТИСТИКА ВРЕМЕНИ ЗАГРУЗКИ (после сброса фильтров):")
+        print(f"{'─' * 40}")
+        print(f"   • Общее время загрузки: {total_duration:.1f} сек")
+        print(f"   • Среднее время на раздел: {avg_duration:.1f} сек")
+        print(f"   • Самый долгий раздел: {max_section} ({max_duration:.1f} сек)")
+
+        # Выводим 5 самых долгих разделов
+        print(f"\n   5 самых долгих разделов:")
+        sorted_times = sorted(load_times.items(), key=lambda x: x[1].get('load_duration', 0), reverse=True)[:5]
+        for i, (section, info) in enumerate(sorted_times, 1):
+            duration = info.get('load_duration', 0)
+            if duration > 0:
+                print(f"      {i}. {section}: {duration:.1f} сек")
+
 print(f"\n📋 РЕЗУЛЬТАТЫ ПО РАЗДЕЛАМ:")
 print(f"{'─' * 60}")
 
 for section_name, result in all_results.items():
+    # Получаем время загрузки для этого раздела
+    load_info = load_times.get(section_name, {})
+    duration = load_info.get('load_duration', 0)
+
     if result['error_count'] == 0:
-        print(f"   ✅ {section_name}")
+        if duration > 0:
+            print(f"   ✅ {section_name} [{duration:.1f} сек]")
+        else:
+            print(f"   ✅ {section_name}")
     else:
         # Берем только уникальные ошибки в разделе (без дублей по тексту)
         unique_errors = list(set(result['errors']))
-        print(f"   ❌ {section_name} - {len(unique_errors)} ошиб.")
+        if duration > 0:
+            print(f"   ❌ {section_name} - {len(unique_errors)} ошиб. [{duration:.1f} сек]")
+        else:
+            print(f"   ❌ {section_name} - {len(unique_errors)} ошиб.")
 
 print(f"\n📋 СПИСОК ОШИБОК ПО РАЗДЕЛАМ:")
 print(f"{'─' * 80}")
