@@ -64,7 +64,7 @@ class SystemTester:
                 url=url,
                 json=data if data else None,
                 headers=request_headers,
-                timeout=15
+                timeout=60
             )
 
             status_code = response.status_code
@@ -257,7 +257,7 @@ class SystemTester:
         success, status = self.make_request(
             name="ПРИБОРЫ УЧЕТА",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/meteringDevice",
+            endpoint="/api/bear/script/sync/flat/meteringDevicesPredBill",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -274,7 +274,7 @@ class SystemTester:
         success, status = self.make_request(
             name="SIM-КАРТЫ",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/simCard",
+            endpoint="/api/advanced/dynamic/data/flat/simCardsPredBill",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -291,7 +291,7 @@ class SystemTester:
         success, status = self.make_request(
             name="УСПД",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/transmissionDevice",
+            endpoint="/api/advanced/dynamic/data/flat/transmissionDevicesPredBill",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -308,7 +308,7 @@ class SystemTester:
         success, status = self.make_request(
             name="ШКАФ УСПД",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/cabineUspd",
+            endpoint="/api/advanced/dynamic/data/flat/cabineUspdsPredBill",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -320,13 +320,13 @@ class SystemTester:
 
         return success, status
 
-    # =========== ТЕХНИЧЕСКИЙ КОНТРОЛЬ ===========
+    # Технологический контроль
     def test_potreblenie(self) -> tuple:
         """Потребление - POST запрос"""
         success, status = self.make_request(
             name="ПОТРЕБЛЕНИЕ",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/meteringPoint",
+            endpoint="/api/bear/script/sync/flat/meteringPointsPredBill",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -360,7 +360,7 @@ class SystemTester:
         success, status = self.make_request(
             name="ОТПУСК ТЕПЛОВОЙ ЭНЕРГИИ",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/heatEnergyRelease",
+            endpoint="/api/advanced/dynamic/data/flat/heatEnergyRelease",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -377,7 +377,7 @@ class SystemTester:
         success, status = self.make_request(
             name="ОТКЛЮЧЕНИЯ",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/shutdown",
+            endpoint="/api/bear/script/sync/flat/shutdownMeteringPoint",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -394,7 +394,7 @@ class SystemTester:
         success, status = self.make_request(
             name="ВВОД ДАННЫХ С МЕТЕОСТАНЦИЙ",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/weather",
+            endpoint="/api/advanced/dynamic/data/flat/weathersPredbill",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -411,7 +411,7 @@ class SystemTester:
         success, status = self.make_request(
             name="РЕЖИМНЫЕ КАРТЫ",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/modeCard",
+            endpoint="/api/advanced/dynamic/data/flat/modeCardsPredBill",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -423,13 +423,13 @@ class SystemTester:
 
         return success, status
 
-    # =========== ИНТЕГРАЦИИ ===========
+    #  ИНТЕГРАЦИИ
     def test_asupr_zhurnal_polucheniya_vedomostey(self) -> tuple:
         """АСУПР: Журнал получения ведомостей - POST запрос"""
         success, status = self.make_request(
             name="АСУПР: ЖУРНАЛ ПОЛУЧЕНИЯ ВЕДОМОСТЕЙ",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/asuprStatementUploadLog",
+            endpoint="/api/bear/script/sync/flat/statementUploadLogsRegistry",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -446,7 +446,7 @@ class SystemTester:
         success, status = self.make_request(
             name="АСУПР: ЖУРНАЛ ПОЛУЧЕНИЯ СПРАВОЧНИКОВ",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/asuprDirectoryReceiptLog",
+            endpoint="/api/bear/script/sync/flatBuff/directoryReceiptLogsRegistry",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -463,7 +463,7 @@ class SystemTester:
         success, status = self.make_request(
             name="АСУПР: ЖУРНАЛ СОПОСТАВЛЕНИЯ СПРАВОЧНИКОВ",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/asuprComparisonLog",
+            endpoint="/api/bear/script/sync/flatBuff/comparisonLogsMeteringUnitsRegistry",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -480,7 +480,7 @@ class SystemTester:
         success, status = self.make_request(
             name="ЕЛК: ЖУРНАЛ ПОЛУЧЕНИЯ ВЕДОМОСТЕЙ",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/elkStatementUploadLog",
+            endpoint="/api/bear/script/sync/flat/statementUploadLogsRegistry",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -497,7 +497,7 @@ class SystemTester:
         success, status = self.make_request(
             name="ЕЛК: ПОЛУЧЕНИЕ ДАННЫХ ИЗ ФАЙЛА ПО ВПУ",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/elkWaterMeterStatementUploadLog",
+            endpoint="/api/bear/script/sync/watermeterStatementsUpload",
             data=self.vpu_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -514,7 +514,7 @@ class SystemTester:
         success, status = self.make_request(
             name="АСОТ: ЖУРНАЛ ПОЛУЧЕНИЯ ДАННЫХ",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/asotInformationJournal",
+            endpoint="/api/bear/script/sync/flatBuff/integration_asot_assd_query",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -531,7 +531,7 @@ class SystemTester:
         success, status = self.make_request(
             name="ЕСМ: ЖУРНАЛ ВЗАИМОДЕЙСТВИЯ",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/esmLog",
+            endpoint="/api/advanced/dynamic/data/flat/esmLogsRegistry",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -548,7 +548,7 @@ class SystemTester:
         success, status = self.make_request(
             name="МВК: ЖУРНАЛ ВЗАИМОДЕЙСТВИЯ",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/mvkLog",
+            endpoint="/api/advanced/dynamic/data/flat/mvkLogsRegistry",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -565,7 +565,7 @@ class SystemTester:
         success, status = self.make_request(
             name="АССД ПСД: ЖУРНАЛ ПОЛУЧЕНИЯ ВЕДОМОСТЕЙ",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/assdPsdStatementUploadLog",
+            endpoint="/api/bear/script/sync/flat/statementUploadLogsRegistry",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -582,7 +582,7 @@ class SystemTester:
         success, status = self.make_request(
             name="ЕКС НСИ: ЖУРНАЛ ОБМЕНА ДАННЫМИ",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/eksNsiLog",
+            endpoint="/api/bear/script/sync/eksNsiLogRegistry",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -599,7 +599,7 @@ class SystemTester:
         success, status = self.make_request(
             name="ИС СБЫТ: ОБЩАЯ СТАТИСТИКА",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/kommLog",
+            endpoint="/api/bear/script/sync/flatBuff/kommSentLogs",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -616,7 +616,7 @@ class SystemTester:
         success, status = self.make_request(
             name="ИС СБЫТ: ЖУРНАЛ ОШИБОК",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/kommErrorLog",
+            endpoint="/api/bear/script/sync/flatBuff/kommSentErrors",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -633,7 +633,7 @@ class SystemTester:
         success, status = self.make_request(
             name="ЗАЯВКИ В УКУИКЭ",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/application",
+            endpoint="/api/advanced/dynamic/data/flat/meteringDevicesApplicationTable",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -650,7 +650,7 @@ class SystemTester:
         success, status = self.make_request(
             name="АНАЛИТИКА И ОТЧЕТНОСТЬ",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/analyticReport",
+            endpoint="/api/bear/script/sync/getAnalyticsReportsByUser",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -667,7 +667,7 @@ class SystemTester:
         success, status = self.make_request(
             name="НОРМАТИВНО-СПРАВОЧНАЯ ИНФОРМАЦИЯ",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/catalog",
+            endpoint="/api/advanced/dynamic/data/flat/aoDistricts",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -684,7 +684,7 @@ class SystemTester:
         success, status = self.make_request(
             name="АДМИНИСТРИРОВАНИЕ: РОЛИ",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/role",
+            endpoint="/api/advanced/dynamic/data/flat/roles",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -701,7 +701,7 @@ class SystemTester:
         success, status = self.make_request(
             name="АДМИНИСТРИРОВАНИЕ: ПОЛЬЗОВАТЕЛИ",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/user",
+            endpoint="/api/advanced/dynamic/data/flat/systemUsers",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -718,7 +718,7 @@ class SystemTester:
         success, status = self.make_request(
             name="АДМИНИСТРИРОВАНИЕ: ЭЛЕМЕНТЫ ИНТЕРФЕЙСА",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/uiElement",
+            endpoint="/api/advanced/dynamic/data/flat/uiElements",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -735,7 +735,7 @@ class SystemTester:
         success, status = self.make_request(
             name="АДМИНИСТРИРОВАНИЕ: ПЛАНИРОВЩИК",
             method="POST",
-            endpoint="/api/bear/script/sync/flat/cronJob",
+            endpoint="/api/advanced/dynamic/data/flat/cronRegistry",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
@@ -761,14 +761,14 @@ class SystemTester:
         tests = [
             ("АВТОРИЗАЦИЯ", self.test_authentication),
 
-            # Коммерческий контроль
+            # Коммерческий учет
             ("РЕЕСТР ВЕДОМОСТЕЙ", self.test_reestr_vedomostey),
             ("РЕЕСТР ПОКАЗАНИЙ ВОДОМЕРОВ", self.test_reestr_pokazaniy_vodomerov),
             ("ЗАГРУЗКА ФАЙЛА С ДАННЫМИ ПО ВПУ", self.test_zagruzka_fayla_vpu),
             ("УПРАВЛЕНИЕ БЛОКИРОВКАМИ", self.test_upravlenie_blokirovkami),
             ("ВАРЬИРУЕМЫЕ ИНТЕРВАЛЫ", self.test_varyiruemye_intervaly),
 
-            # Предбиллинг
+            # Паспортизация и обслуживание
             ("ОБЪЕКТЫ ТЕПЛОСЕТИ", self.test_obekty_teplosetey),
             ("УЗЛЫ УЧЕТА", self.test_uzly_ucheta),
             ("РЕЕСТР АВЭ|АПП", self.test_reestr_ave_app),
@@ -777,7 +777,7 @@ class SystemTester:
             ("УСПД", self.test_uspd),
             ("ШКАФ УСПД", self.test_shkaf_uspd),
 
-            # Технический контроль
+            # Технологический учет
             ("ПОТРЕБЛЕНИЕ", self.test_potreblenie),
             ("ПОТРЕБЛЕНИЕ МВК", self.test_potreblenie_mvk),
             ("ОТПУСК ТЕПЛОВОЙ ЭНЕРГИИ", self.test_otpusk_teplovoy_energii),
@@ -798,10 +798,7 @@ class SystemTester:
             ("ЕКС НСИ: ЖУРНАЛ ОБМЕНА ДАННЫМИ", self.test_eks_nsi_zhurnal_obmena_dannymi),
             ("ИС СБЫТ: ОБЩАЯ СТАТИСТИКА", self.test_is_sbyt_obshchaya_statistika),
             ("ИС СБЫТ: ЖУРНАЛ ОШИБОК", self.test_is_sbyt_zhurnal_oshibok),
-
-            # Заявки
             ("ЗАЯВКИ В УКУИКЭ", self.test_zayavki_v_ukuike),
-
             # Аналитика
             ("АНАЛИТИКА И ОТЧЕТНОСТЬ", self.test_analitika_i_otchetnost),
 
