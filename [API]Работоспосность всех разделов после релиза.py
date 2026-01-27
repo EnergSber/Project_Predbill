@@ -880,8 +880,8 @@ class SystemTester:
         # Вывод финального отчета
         self._print_final_report(start_time)
 
-    def _print_final_report(self, start_time):
-        """Вывод финального отчета"""
+    def _print_final_report(self, start_time: float):
+        """Вывод финального отчета с форматированным временем"""
         print("\n" + "=" * 60)
         print("ФИНАЛЬНЫЙ ОТЧЕТ")
         print("=" * 60)
@@ -897,6 +897,11 @@ class SystemTester:
 
         total = len(self.results)
 
+        # Вычисляем общее время в минутах и секундах
+        total_seconds = time.time() - start_time
+        minutes = int(total_seconds // 60)
+        seconds = total_seconds % 60
+
         print(f"\n📊 ОБЩАЯ СТАТИСТИКА:")
         print(f"   Всего тестов: {total}")
         print(f"   Успешных: {successful}")
@@ -905,7 +910,16 @@ class SystemTester:
         if total > 0:
             print(f"   Процент успеха: {successful / total * 100:.1f}%")
 
-        print(f"   Общее время: {time.time() - start_time:.2f} секунд")
+        # Форматируем время в зависимости от продолжительности
+        if minutes == 0:
+            # Меньше минуты - показываем только секунды
+            print(f"   Общее время: {seconds:.1f} секунд")
+        elif seconds < 0.1:
+            # Ровно N минут (без секунд)
+            print(f"   Общее время: {minutes} минут")
+        else:
+            # Минуты и секунды
+            print(f"   Общее время: {minutes} минут {seconds:.1f} секунд")
 
         if failed_tests:
             print(f"\n🔴 ПРОВАЛЕННЫЕ ТЕСТЫ:")
@@ -920,6 +934,8 @@ class SystemTester:
             print(f"\n✅ ВСЕ ТЕСТЫ УСПЕШНЫ!")
 
         print("=" * 60)
+
+
 
 
 # =========== ЗАПУСК ПРОГРАММЫ ===========
