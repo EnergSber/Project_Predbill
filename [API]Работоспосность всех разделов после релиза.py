@@ -42,6 +42,52 @@ class SystemTester:
             "dataSources": ["ASSD", "ManualLoad", "ManualLoadVPU"]
         })
 
+        # Payload для потребления с checkVolumeMeasure
+        self.consumption_payload = {
+            "checkVolumeMeasure": "",
+            "dataRoles": [
+                "ADMIN", "COMMERCIAL_DIVISION", "COMMERCIAL_MANAGMENT", "DATA_ALL_OBJECTS",
+                "DATA_ENTERPRISE_0", "DATA_ENTERPRISE_1", "DATA_ENTERPRISE_10", "DATA_ENTERPRISE_11",
+                "DATA_ENTERPRISE_12", "DATA_ENTERPRISE_13", "DATA_ENTERPRISE_14", "DATA_ENTERPRISE_1_NPS",
+                "DATA_ENTERPRISE_2", "DATA_ENTERPRISE_3", "DATA_ENTERPRISE_4", "DATA_ENTERPRISE_5",
+                "DATA_ENTERPRISE_6", "DATA_ENTERPRISE_7", "DATA_ENTERPRISE_8", "DATA_ENTERPRISE_9",
+                "DATA_MO", "DATA_NAO", "DATA_SALES_DEP_1", "DATA_SALES_DEP_10", "DATA_SALES_DEP_11",
+                "DATA_SALES_DEP_2", "DATA_SALES_DEP_3", "DATA_SALES_DEP_4", "DATA_SALES_DEP_5",
+                "DATA_SALES_DEP_6", "DATA_SALES_DEP_7", "DATA_SALES_DEP_8", "DATA_SALES_DEP_9",
+                "DATA_SAO", "DATA_SVAO", "DATA_SZAO", "DATA_TAO", "DATA_TSAO", "DATA_UAO",
+                "DATA_UVAO", "DATA_UZAO", "DATA_VAO", "DATA_ZAO", "DATA_ZELAO", "DATA_ZONE_10",
+                "DATA_ZONE_111", "DATA_ZONE_12", "DATA_ZONE_14", "INTEGRATIONS", "PASSPORT",
+                "ROLE", "ROLE_ALL_OBJECTS", "ROLE-TEST", "ROLE-TEST2", "TECHNOLOGICAL_DIVISION",
+                "TECHNOLOGICAL_MANAGMENT", "TEST05122024", "WEATHER"
+            ],
+            "dateFrom": self.start_date.strftime("%Y-%m-%d")
+        }
+
+        # Payload для ЕКС НСИ: ЖУРНАЛ ОБМЕНА ДАННЫМИ
+        self.eks_nsi_payload = self.common_payload.copy()
+        self.eks_nsi_payload.update({
+            "config": "eksNsiLogRegistrySql"
+        })
+        #Для отпуска тепловой энергии
+        self.heat_release_payload = {
+            "dataRoles": [
+                "ADMIN", "COMMERCIAL_DIVISION", "COMMERCIAL_MANAGMENT", "DATA_ALL_OBJECTS",
+                "DATA_ENTERPRISE_0", "DATA_ENTERPRISE_1", "DATA_ENTERPRISE_10", "DATA_ENTERPRISE_11",
+                "DATA_ENTERPRISE_12", "DATA_ENTERPRISE_13", "DATA_ENTERPRISE_14", "DATA_ENTERPRISE_1_NPS",
+                "DATA_ENTERPRISE_2", "DATA_ENTERPRISE_3", "DATA_ENTERPRISE_4", "DATA_ENTERPRISE_5",
+                "DATA_ENTERPRISE_6", "DATA_ENTERPRISE_7", "DATA_ENTERPRISE_8", "DATA_ENTERPRISE_9",
+                "DATA_MO", "DATA_NAO", "DATA_SALES_DEP_1", "DATA_SALES_DEP_10", "DATA_SALES_DEP_11",
+                "DATA_SALES_DEP_2", "DATA_SALES_DEP_3", "DATA_SALES_DEP_4", "DATA_SALES_DEP_5",
+                "DATA_SALES_DEP_6", "DATA_SALES_DEP_7", "DATA_SALES_DEP_8", "DATA_SALES_DEP_9",
+                "DATA_SAO", "DATA_SVAO", "DATA_SZAO", "DATA_TAO", "DATA_TSAO", "DATA_UAO",
+                "DATA_UVAO", "DATA_UZAO", "DATA_VAO", "DATA_ZAO", "DATA_ZELAO", "DATA_ZONE_10",
+                "DATA_ZONE_111", "DATA_ZONE_12", "DATA_ZONE_14", "INTEGRATIONS", "PASSPORT",
+                "ROLE", "ROLE_ALL_OBJECTS", "ROLE-TEST", "ROLE-TEST2", "TECHNOLOGICAL_DIVISION",
+                "TECHNOLOGICAL_MANAGMENT", "TEST05122024", "WEATHER"
+            ],
+            "dateFrom": self.start_date.strftime("%Y-%m-%d")
+        }
+
     def make_request(self, name: str, method: str, endpoint: str,
                      data: Optional[Dict] = None, headers: Optional[Dict] = None,
                      expected_status: int = 200) -> tuple:
@@ -327,7 +373,7 @@ class SystemTester:
             name="ПОТРЕБЛЕНИЕ",
             method="POST",
             endpoint="/api/bear/script/sync/flat/meteringPointsPredBill",
-            data=self.common_payload,
+            data=self.consumption_payload,  # Используем специфичный payload с checkVolumeMeasure
             headers={'Content-Type': 'application/json'}
         )
 
@@ -344,7 +390,7 @@ class SystemTester:
             name="ПОТРЕБЛЕНИЕ МВК",
             method="POST",
             endpoint="/api/bear/script/sync/flat/consumptionMvk",
-            data=self.common_payload,
+            data=self.consumption_payload,
             headers={'Content-Type': 'application/json'}
         )
 
@@ -361,7 +407,7 @@ class SystemTester:
             name="ОТПУСК ТЕПЛОВОЙ ЭНЕРГИИ",
             method="POST",
             endpoint="/api/advanced/dynamic/data/flat/heatEnergyRelease",
-            data=self.common_payload,
+            data=self.heat_release_payload,
             headers={'Content-Type': 'application/json'}
         )
 
@@ -583,7 +629,7 @@ class SystemTester:
             name="ЕКС НСИ: ЖУРНАЛ ОБМЕНА ДАННЫМИ",
             method="POST",
             endpoint="/api/bear/script/sync/eksNsiLogRegistry",
-            data=self.common_payload,
+            data=self.eks_nsi_payload,  # Используем специфичный payload с config
             headers={'Content-Type': 'application/json'}
         )
 
@@ -595,17 +641,31 @@ class SystemTester:
         return success, status
 
     def test_is_sbyt_obshchaya_statistika(self) -> tuple:
-        """ИС СБЫТ: Общая статистика - POST запрос"""
-        success, status = self.make_request(
-            name="ИС СБЫТ: ОБЩАЯ СТАТИСТИКА",
+        """ИС СБЫТ: Общая статистика - POST запрос (две таблицы)"""
+        # Первый запрос - kommSentLogs
+        success1, status1 = self.make_request(
+            name="ИС СБЫТ: ОБЩАЯ СТАТИСТИКА (kommSentLogs)",
             method="POST",
-            endpoint="/api/bear/script/sync/flatBuff/kommSentLogs",
+            endpoint="/api/bear/script/sync/flatBuff/kommSentLogs?page=0&size=50&sort=month_year,desc",
             data=self.common_payload,
             headers={'Content-Type': 'application/json'}
         )
 
+        # Второй запрос - kommIncomingLogs
+        success2, status2 = self.make_request(
+            name="ИС СБЫТ: ОБЩАЯ СТАТИСТИКА (kommIncomingLogs)",
+            method="POST",
+            endpoint="/api/bear/script/sync/flatBuff/kommIncomingLogs?page=0&size=50&sort=month_year,desc",
+            data=self.common_payload,
+            headers={'Content-Type': 'application/json'}
+        )
+
+        # Общий результат считается успешным, если оба запроса успешны
+        success = success1 and success2
+        status = f"{status1}/{status2}"
+
         if success:
-            print(f"✓ ИС СБЫТ: ОБЩАЯ СТАТИСТИКА: OK (200)")
+            print(f"✓ ИС СБЫТ: ОБЩАЯ СТАТИСТИКА: OK (200/200)")
         else:
             print(f"✗ ИС СБЫТ: ОБЩАЯ СТАТИСТИКА: ОШИБКА ({status})")
 
