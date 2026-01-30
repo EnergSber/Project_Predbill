@@ -920,6 +920,48 @@ class SystemTester:
         print("ФИНАЛЬНЫЙ ОТЧЕТ")
         print("=" * 60)
 
+        # Словарь соответствий имен тестов и endpoint'ов
+        test_endpoints = {
+            "АВТОРИЗАЦИЯ": "/api/auth/token",
+            "РЕЕСТР ВЕДОМОСТЕЙ": "/api/bear/script/sync/flat/predBillingStatement",
+            "РЕЕСТР ПОКАЗАНИЙ ВОДОМЕРОВ": "/api/bear/script/sync/flat/watermeterStatements",
+            "ЗАГРУЗКА ФАЙЛА С ДАННЫМИ ПО ВПУ": "/api/bear/script/sync/watermeterStatementsUpload",
+            "УПРАВЛЕНИЕ БЛОКИРОВКАМИ": "/api/bear/script/sync/flat/blocksManagement",
+            "ВАРЬИРУЕМЫЕ ИНТЕРВАЛЫ": "/api/advanced/dynamic/data/flat/variableIntervals",
+            "ОБЪЕКТЫ ТЕПЛОСЕТИ": "/api/bear/script/sync/flat/accountingObjectsPredBill",
+            "УЗЛЫ УЧЕТА": "/api/advanced/dynamic/data/flat/commercialNodes",
+            "РЕЕСТР АВЭ|АПП": "/api/advanced/dynamic/data/flat/certificates",
+            "ПРИБОРЫ УЧЕТА": "/api/bear/script/sync/flat/meteringDevicesPredBill",
+            "SIM-КАРТЫ": "/api/advanced/dynamic/data/flat/simCardsPredBill",
+            "УСПД": "/api/advanced/dynamic/data/flat/transmissionDevicesPredBill",
+            "ШКАФ УСПД": "/api/advanced/dynamic/data/flat/cabineUspdsPredBill",
+            "ПОТРЕБЛЕНИЕ": "/api/bear/script/sync/flat/meteringPointsPredBill",
+            "ПОТРЕБЛЕНИЕ МВК": "/api/bear/script/sync/flat/consumptionMvk",
+            "ОТПУСК ТЕПЛОВОЙ ЭНЕРГИИ": "/api/advanced/dynamic/data/flat/heatEnergyRelease",
+            "ОТКЛЮЧЕНИЯ": "/api/bear/script/sync/flat/shutdownMeteringPoint",
+            "ВВОД ДАННЫХ С МЕТЕОСТАНЦИЙ": "/api/advanced/dynamic/data/flat/weathersPredbill",
+            "РЕЖИМНЫЕ КАРТЫ": "/api/advanced/dynamic/data/flat/modeCardsPredBill",
+            "АСУПР: ЖУРНАЛ ПОЛУЧЕНИЯ ВЕДОМОСТЕЙ": "/api/bear/script/sync/flat/statementUploadLogsRegistry",
+            "АСУПР: ЖУРНАЛ ПОЛУЧЕНИЯ СПРАВОЧНИКОВ": "/api/bear/script/sync/flatBuff/directoryReceiptLogsRegistry",
+            "АСУПР: ЖУРНАЛ СОПОСТАВЛЕНИЯ СПРАВОЧНИКОВ": "/api/bear/script/sync/flatBuff/comparisonLogsMeteringUnitsRegistry",
+            "ЕЛК: ЖУРНАЛ ПОЛУЧЕНИЯ ВЕДОМОСТЕЙ": "/api/bear/script/sync/flat/statementUploadLogsRegistry",
+            "ЕЛК: ПОЛУЧЕНИЕ ДАННЫХ ИЗ ФАЙЛА ПО ВПУ": "/api/bear/script/sync/watermeterStatementsUpload",
+            "АСОТ: ЖУРНАЛ ПОЛУЧЕНИЯ ДАННЫХ": "/api/bear/script/sync/flatBuff/integration_asot_assd_query",
+            "ЕСМ: ЖУРНАЛ ВЗАИМОДЕЙСТВИЯ": "/api/advanced/dynamic/data/flat/esmLogsRegistry",
+            "МВК: ЖУРНАЛ ВЗАИМОДЕЙСТВИЯ": "/api/advanced/dynamic/data/flat/mvkLogsRegistry",
+            "АССД ПСД: ЖУРНАЛ ПОЛУЧЕНИЯ ВЕДОМОСТЕЙ": "/api/bear/script/sync/flat/statementUploadLogsRegistry",
+            "ЕКС НСИ: ЖУРНАЛ ОБМЕНА ДАННЫМИ": "/api/bear/script/sync/eksNsiLogRegistry",
+            "ИС СБЫТ: ОБЩАЯ СТАТИСТИКА": "/api/bear/script/sync/flatBuff/kommSentLogs и /api/bear/script/sync/flatBuff/kommIncomingLogs",
+            "ИС СБЫТ: ЖУРНАЛ ОШИБОК": "/api/bear/script/sync/flatBuff/kommSentErrors",
+            "ЗАЯВКИ В УКУИКЭ": "/api/advanced/dynamic/data/flat/meteringDevicesApplicationTable",
+            "АНАЛИТИКА И ОТЧЕТНОСТЬ": "/api/bear/script/sync/getAnalyticsReportsByUser",
+            "НОРМАТИВНО-СПРАВОЧНАЯ ИНФОРМАЦИЯ": "/api/advanced/dynamic/data/flat/aoDistricts",
+            "АДМИНИСТРИРОВАНИЕ: РОЛИ": "/api/advanced/dynamic/data/flat/roles",
+            "АДМИНИСТРИРОВАНИЕ: ПОЛЬЗОВАТЕЛИ": "/api/advanced/dynamic/data/flat/systemUsers",
+            "АДМИНИСТРИРОВАНИЕ: ЭЛЕМЕНТЫ ИНТЕРФЕЙСА": "/api/advanced/dynamic/data/flat/uiElements",
+            "АДМИНИСТРИРОВАНИЕ: ПЛАНИРОВЩИК": "/api/advanced/dynamic/data/flat/cronRegistry"
+        }
+
         successful = 0
         failed_tests = []
         test_times = []
@@ -929,7 +971,8 @@ class SystemTester:
             if success:
                 successful += 1
             else:
-                failed_tests.append((test_name, status))
+                endpoint = test_endpoints.get(test_name, "неизвестный endpoint")
+                failed_tests.append((test_name, status, endpoint))
 
         total = len(self.results)
 
@@ -969,18 +1012,23 @@ class SystemTester:
 
         if failed_tests:
             print(f"\n🔴 ПРОВАЛЕННЫЕ ТЕСТЫ:")
-            for test_name, status in failed_tests:
+            for test_name, status, endpoint in failed_tests:
                 if status == 0:
-                    print(f"   • {test_name}: ОШИБКА ПОДКЛЮЧЕНИЯ")
+                    print(f"   • {test_name}")
+                    print(f"     Endpoint: {endpoint}")
+                    print(f"     Ошибка: ОШИБКА ПОДКЛЮЧЕНИЯ")
                 elif status == 408:
-                    print(f"   • {test_name}: ТАЙМАУТ (408)")
+                    print(f"   • {test_name}")
+                    print(f"     Endpoint: {endpoint}")
+                    print(f"     Ошибка: ТАЙМАУТ (408)")
                 else:
-                    print(f"   • {test_name}: КОД ОШИБКИ {status}")
+                    print(f"   • {test_name}")
+                    print(f"     Endpoint: {endpoint}")
+                    print(f"     Код ошибки: {status}")
         else:
             print(f"\n✅ ВСЕ ТЕСТЫ УСПЕШНЫ!")
 
         print("=" * 60)
-
 
 #Запуск проги
 if __name__ == "__main__":
