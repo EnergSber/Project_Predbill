@@ -55,7 +55,7 @@ class SystemTester:
         self.base_url = base_url
         self.session = requests.Session()
         self.token = None
-        self.results = []  # Теперь будет хранить (name, success, status, response_time)
+        self.results = []
 
         # Получаем даты для запросов (текущий месяц)
         self.end_date = datetime.now()
