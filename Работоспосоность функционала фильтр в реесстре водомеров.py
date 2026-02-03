@@ -46,8 +46,9 @@ def process_date_range_field():
         start_date_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(1) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div.ant-picker.startDateRangePicker"
         end_date_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(1) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div:nth-child(2)"
 
-        # Календарь
-        calendar_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(1) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div.ant-picker.startDateRangePicker.ant-picker-focused > div:nth-child(2) > div > div > div > div > div > div.ant-picker-body > table"
+        # Календари (РАЗНЫЕ для начала и конца)
+        start_calendar_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(1) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div.ant-picker.startDateRangePicker.ant-picker-focused > div:nth-child(2) > div > div > div > div > div > div.ant-picker-body > table"
+        end_calendar_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(1) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div.ant-picker.ant-picker-focused > div:nth-child(2) > div > div > div > div > div > div.ant-picker-body > table"
 
         # 1. Обрабатываем дату начала
         print(f"  📅 Обрабатываем дату начала...")
@@ -69,17 +70,17 @@ def process_date_range_field():
             return False
 
         # 2. Выбираем случайную дату из календаря (начало)
-        print(f"  🔍 Ищем календарь...")
+        print(f"  🔍 Ищем календарь для даты начала...")
         try:
             calendar = wait.until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, calendar_selector))
+                EC.presence_of_element_located((By.CSS_SELECTOR, start_calendar_selector))
             )
-            print(f"  ✅ Календарь найден")
+            print(f"  ✅ Календарь для начала найден")
 
             # Ищем все доступные даты в календаре (ячейки которые можно выбрать)
             available_dates = calendar.find_elements(By.CSS_SELECTOR,
                                                      "td.ant-picker-cell:not(.ant-picker-cell-disabled)")
-            print(f"  📊 Найдено доступных дат: {len(available_dates)}")
+            print(f"  📊 Найдено доступных дат для начала: {len(available_dates)}")
 
             if not available_dates:
                 print(f"  ⚠ Нет доступных дат в календаре")
@@ -96,7 +97,7 @@ def process_date_range_field():
             # Кликаем на дату
             random_date.click()
             print(f"  ✅ Выбрали дату начала: {date_text}")
-            time.sleep(1)  # Ждем применения даты
+            time.sleep(1)  # Ждем применения даты и закрытия календаря
 
         except Exception as e:
             print(f"  ❌ Ошибка при работе с календарем начала: {e}")
@@ -126,12 +127,11 @@ def process_date_range_field():
         print(f"  🔍 Ищем календарь для даты конца...")
         try:
             calendar = wait.until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, calendar_selector))
+                EC.presence_of_element_located((By.CSS_SELECTOR, end_calendar_selector))
             )
-            print(f"  ✅ Календарь найден")
+            print(f"  ✅ Календарь для конца найден")
 
             # Ищем все доступные даты в календаре (ячейки которые можно выбрать)
-            # Для даты конца ищем даты ПОСЛЕ выбранной даты начала
             available_dates = calendar.find_elements(By.CSS_SELECTOR,
                                                      "td.ant-picker-cell:not(.ant-picker-cell-disabled)")
             print(f"  📊 Найдено доступных дат для конца: {len(available_dates)}")
@@ -272,6 +272,60 @@ def check_fields_emptiness(field_configs):
             print(f"  ✓ Патрубок: не отмечен")
     except:
         print(f"  ⚠ Патрубок: не найден")
+
+    # ОСОБАЯ ПРОВЕРКА ДЛЯ ПОЛЯ "РАСЧЕТНЫЙ ПЕРИОД"
+    print(f"\n🔍 Проверяем поле Расчетный период...")
+    try:
+        # Селекторы для полей дат
+        start_date_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(1) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div.ant-picker.startDateRangePicker"
+        end_date_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(1) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div:nth-child(2)"
+
+        # Проверяем дату начала
+        try:
+            start_date_field = driver.find_element(By.CSS_SELECTOR, start_date_selector)
+            start_date_value = start_date_field.text.strip()
+
+            # Проверяем плейсхолдеры для даты начала
+            date_placeholders = ["Выберите дату", "Select date", "Дата начала", "Start date", "Начало", ""]
+            is_start_placeholder = any(ph in start_date_value for ph in date_placeholders) or start_date_value == ""
+
+            if start_date_value and not is_start_placeholder:
+                not_emptied_fields.append({
+                    "field": "Дата начала (Расчетный период)",
+                    "value": start_date_value[:50] + "..." if len(start_date_value) > 50 else start_date_value,
+                    "reason": "Не сбросилось"
+                })
+                print(f"  ❌ Дата начала: '{start_date_value}'")
+            else:
+                print(f"  ✓ Дата начала: пустая (или плейсхолдер)")
+
+        except Exception as e:
+            print(f"  ⚠ Дата начала: ошибка проверки - {str(e)[:50]}")
+
+        # Проверяем дату конца
+        try:
+            end_date_field = driver.find_element(By.CSS_SELECTOR, end_date_selector)
+            end_date_value = end_date_field.text.strip()
+
+            # Проверяем плейсхолдеры для даты конца
+            date_placeholders = ["Выберите дату", "Select date", "Дата конца", "End date", "Конец", ""]
+            is_end_placeholder = any(ph in end_date_value for ph in date_placeholders) or end_date_value == ""
+
+            if end_date_value and not is_end_placeholder:
+                not_emptied_fields.append({
+                    "field": "Дата конца (Расчетный период)",
+                    "value": end_date_value[:50] + "..." if len(end_date_value) > 50 else end_date_value,
+                    "reason": "Не сбросилось"
+                })
+                print(f"  ❌ Дата конца: '{end_date_value}'")
+            else:
+                print(f"  ✓ Дата конца: пустая (или плейсхолдер)")
+
+        except Exception as e:
+            print(f"  ⚠ Дата конца: ошибка проверки - {str(e)[:50]}")
+
+    except Exception as e:
+        print(f"  ⚠ Расчетный период: ошибка проверки - {str(e)[:50]}")
 
     return not_emptied_fields
 
@@ -1074,15 +1128,10 @@ print("\n" + "=" * 50)
 print("ШАГ 7: ЗАПОЛНЕНИЕ ПОЛЕЙ ФИЛЬТРА")
 print("=" * 50)
 
-# Определяем селекторы полей (в порядке заполнения) - ВСЕ ИСПРАВЛЕННЫЕ
+# Определяем селекторы полей (в порядке заполнения)
 field_configs = [
-    # Расчетный период (календарь) - ДОБАВЛЕНО ПЕРВЫМ
+    # Расчетный период (календарь)
     {"name": "Расчетный период", "type": "date_range"},
-
-    # Первые два поля - выбираем "Выбрать все"
-    {"name": "Источник данных",
-     "selector": "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(2) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div > div.ant-select-selection-overflow",
-     "type": "select_all"},
     # Первые два поля - выбираем "Выбрать все"
     {"name": "Источник данных",
      "selector": "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(2) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div > div.ant-select-selection-overflow",
@@ -1107,38 +1156,38 @@ field_configs = [
     # Поле Адрес
     {"name": "Адрес", "type": "address"},
 
-    # Филиал (случайное значение) - ИСПРАВЛЕННЫЙ
+    # Филиал (случайное значение)
     {"name": "Филиал",
      "selector": "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(9) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div",
      "type": "select_random"},
 
-    # Предприятие (случайное значение) - ИСПРАВЛЕННЫЙ
+    # Предприятие (случайное значение)
     {"name": "Предприятие",
      "selector": "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(10) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div",
      "type": "select_random"},
 
-    # Тип объекта (случайное значение) - ИСПРАВЛЕННЫЙ
+    # Тип объекта (случайное значение)
     {"name": "Тип объекта",
      "selector": "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(11) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div",
      "type": "select_random"},
 
-    # Номер ПУ (текстовое поле) - ИСПРАВЛЕННЫЙ
+    # Номер ПУ (текстовое поле)
     {"name": "Номер ПУ", "type": "pu_number"},
 
-    # Марка ПУ (случайное значение) - ИСПРАВЛЕННЫЙ
+    # Марка ПУ (случайное значение)
     {"name": "Марка ПУ",
      "selector": "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(15) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div",
      "type": "select_random"},
 
-    # Тип точки учета (случайное значение) - ИСПРАВЛЕННЫЙ
+    # Тип точки учета (случайное значение)
     {"name": "Тип точки учета",
      "selector": "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(16) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div",
      "type": "select_random"},
 
-    # Виртуальный (рандомный выбор) - ИСПРАВЛЕННЫЙ
+    # Виртуальный (рандомный выбор)
     {"name": "Виртуальный", "type": "virtual"},
 
-    # Сальдирующий (рандомный выбор) - ИСПРАВЛЕННЫЙ
+    # Сальдирующий (рандомный выбор)
     {"name": "Сальдирующий", "type": "sald"},
 ]
 
@@ -1156,7 +1205,12 @@ for i, config in enumerate(field_configs, 1):
     selected_value = None
     error_reason = None
 
-    if field_type == "select_all":
+
+    if field_type == "date_range":
+        # Обрабатываем Расчетный период (календарь)
+        success = process_date_range_field()
+
+    elif field_type == "select_all":
         # Выбираем "Выбрать все"
         success = process_select_all_field(config["selector"], field_name)
 
@@ -1376,25 +1430,25 @@ else:
     print("✅ Раздел работает корректно")
     print("✅ Фильтрация по АО работает корректно")
 
-# Вывод информации о несброшенных полях в отчете
-if 'not_emptied_fields' in locals() and not_emptied_fields:
-    # Фильтруем плейсхолдеры
-    real_not_emptied = [f for f in not_emptied_fields
-                        if "Выберите значение" not in f['value']
-                        and "Введите адрес" not in f['value']]
-
-    if real_not_emptied:
-        print(f"\n⚠ Поля не сбросились после сброса фильтров ({len(real_not_emptied)}):")
-        for field_info in real_not_emptied:
-            print(f"  • {field_info['field']}: {field_info['value']}")
-    else:
-        print(f"\n✅ Все поля успешно сброшены (плейсхолдеры игнорируются)")
+# # Вывод информации о несброшенных полях в отчете
+# if 'not_emptied_fields' in locals() and not_emptied_fields:
+#     # Фильтруем плейсхолдеры
+#     real_not_emptied = [f for f in not_emptied_fields
+#                         if "Выберите значение" not in f['value']
+#                         and "Введите адрес" not in f['value']]
+#
+#     if real_not_emptied:
+#         print(f"\n⚠ Поля не сбросились после сброса фильтров ({len(real_not_emptied)}):")
+#         for field_info in real_not_emptied:
+#             print(f"  • {field_info['field']}: {field_info['value']}")
+#     else:
+#         print(f"\n✅ Все поля успешно сброшены (плейсхолдеры игнорируются)")
 
 print(f"\n{'=' * 60}")
 
 # Закрытие браузера
 try:
-    input()
+    #input()
     print("Закрытие браузера...")
     driver.quit()
     print("✓ Браузер успешно закрыт")
