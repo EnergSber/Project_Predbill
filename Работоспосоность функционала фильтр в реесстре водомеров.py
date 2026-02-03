@@ -198,8 +198,16 @@ def check_fields_emptiness(field_configs):
                 field_text = field_element.text.strip()
 
                 # ИГНОРИРУЕМ ПЛЕЙСХОЛДЕРЫ
-                placeholder_texts = ["Выберите значение", "Select value", "Выбрать все", "Select all", "Выберите",
-                                     "Select"]
+                placeholder_texts = [
+                    "Выберите значение", "Select value",
+                    "Выбрать все", "Select all",
+                    "Выберите", "Select",
+                    "Выберите...", "Select...",
+                    "Не выбрано", "Not selected",
+                    "Выберите из списка", "Select from list",
+                    "Значение не выбрано", "Value not selected",
+                    "Выбрать", "Choose"
+                ]
                 is_placeholder = any(ph in field_text for ph in placeholder_texts)
 
                 # Проверяем что поле пустое (нет выбранных значений, кроме плейсхолдеров)
@@ -241,7 +249,13 @@ def check_fields_emptiness(field_configs):
         address_text = address_field.text.strip()
 
         # Проверяем плейсхолдеры для адреса
-        address_placeholders = ["Введите адрес", "Введите значение", "Select address", "Выберите адрес", "Адрес"]
+        address_placeholders = [
+            "Введите адрес", "Введите значение",
+            "Select address", "Выберите адрес",
+            "Адрес", "Address",
+            "Поиск адреса", "Search address",
+            "Начните вводить адрес", "Start typing address", "Выбрать"
+        ]
         is_address_placeholder = any(ph in address_text for ph in address_placeholders)
 
         if address_text and address_text != "" and not is_address_placeholder:
@@ -286,7 +300,15 @@ def check_fields_emptiness(field_configs):
             start_date_value = start_date_field.text.strip()
 
             # Проверяем плейсхолдеры для даты начала
-            date_placeholders = ["Выберите дату", "Select date", "Дата начала", "Start date", "Начало", ""]
+            date_placeholders = [
+                "Выберите дату", "Select date",
+                "Дата начала", "Start date",
+                "Начало", "Start",
+                "Дата конца", "End date",
+                "Конец", "End",
+                "ГГГГ-ММ-ДД", "YYYY-MM-DD",
+                "Выберите период", "Select period"
+            ]
             is_start_placeholder = any(ph in start_date_value for ph in date_placeholders) or start_date_value == ""
 
             if start_date_value and not is_start_placeholder:
