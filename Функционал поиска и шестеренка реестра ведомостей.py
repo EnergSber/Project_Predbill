@@ -1,3 +1,50 @@
+"""
+ "РЕЕСТР ВЕДОМОСТЕЙ" проверка поиска и шестеренки(настройка таблицы)
+
+
+тестирование функциональности веб-приложения, включая:
+1. Авторизацию в системе
+2. Поиск данных по различным критериям
+3. Работу с настройками отображения столбцов таблицы (шестеренка)
+
+ОСНОВНЫЕ ВОЗМОЖНОСТИ:
+---------------------
+1. ПОИСКОВЫЕ ТЕСТЫ:
+   - Поиск по адресу
+   - Поиск по номеру ПУ (прибор учета)
+   - Поиск по номеру ТП (тепловой пункт)
+   - Проверка корректности результатов поиска
+
+2. ТЕСТЫ НАСТРОЕК СТОЛБЦОВ (ШЕСТЕРЕНКА):
+   - Проверка исходного состояния после сброса
+   - Тестирование удаления/добавления столбцов
+   - Проверка функциональности сброса настроек
+   - Сверка настроек шестеренки с фактическим отображением в таблице
+
+ТЕХНИЧЕСКИЕ ОСОБЕННОСТИ:
+------------------------
+- Использует Selenium WebDriver для автоматизации браузера
+- Реализованы "умные" ожидания элементов (WebDriverWait)
+- Обработка динамических элементов и AJAX-загрузок
+- Подробное логирование всех действий и результатов
+- Автоматический сброс состояний между тестами
+
+СТРУКТУРА ТЕСТОВ:
+-----------------
+1. Подготовительные шаги (авторизация, переход в раздел, фильтрация)
+2. Тесты поиска (3 различных типа поиска с проверкой результатов)
+3. Тесты шестеренки (5 тестов функциональности настроек столбцов)
+4. Итоговый отчет с детализацией результатов
+
+ВЫВОД РЕЗУЛЬТАТОВ:
+------------------
+- Подробное логирование в консоль
+- Итоговый статус каждого теста
+- Общий итог тестирования
+
+"""
+
+
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -33,12 +80,23 @@ TABLE_HEADER_SELECTOR = "#root > section > section > main > form > div > div > d
 SETTINGS_GEAR_SELECTOR = "#root > section > section > div > div.mib-profile-control > div.mib-header-right-extra > div > div:nth-child(3) > button > span > svg"
 SETTINGS_POPUP_SELECTOR = "body > div:nth-child(3) > div > div > div > div.ant-popover-inner"
 SETTINGS_CONTENT_ROWS_SELECTOR = "body > div:nth-child(3) > div > div > div > div.ant-popover-inner > div.ant-popover-inner-content > div > div.user-config-editor-content-rows"
-SETTINGS_SAVE_BUTTON_SELECTOR = "body > div:nth-child(3) > div > div > div > div.ant-popover-inner > div.ant-popover-inner-content > div > div.user-config-editor-content-footer > button.ant-btn.ant-btn-primary.ant-btn-sm > span"
-SETTINGS_RESET_BUTTON_SELECTOR = "body > div:nth-child(3) > div > div > div > div.ant-popover-inner > div.ant-popover-title > div > button > span"
-SETTINGS_CANCEL_BUTTON_SELECTOR = "body > div:nth-child(3) > div > div > div > div.ant-popover-inner > div.ant-popover-inner-content > div > div.user-config-editor-content-footer > button.ant-btn.ant-btn-link.ant-btn-sm > span"
 
-# Базовый селектор для чекбоксов в шестеренке
-CHECKBOX_BASE_SELECTOR = "body > div:nth-child(3) > div > div > div > div.ant-popover-inner > div.ant-popover-inner-content > div > div.user-config-editor-content-rows > div:nth-child({}) > div > label > span > input"
+# Точные селекторы для чекбоксов
+PERIOD_CHECKBOX_INPUT = "body > div:nth-child(3) > div > div > div > div.ant-popover-inner > div.ant-popover-inner-content > div > div.user-config-editor-content-rows > div:nth-child(1) > div > label > span > input"
+PERIOD_CHECKBOX_DIV = "body > div:nth-child(3) > div > div > div > div.ant-popover-inner > div.ant-popover-inner-content > div > div.user-config-editor-content-rows > div:nth-child(1) > div > div"
+
+CATEGORY_CHECKBOX_INPUT = "body > div:nth-child(3) > div > div > div > div.ant-popover-inner > div.ant-popover-inner-content > div > div.user-config-editor-content-rows > div:nth-child(4) > div > label > span > input"
+CATEGORY_CHECKBOX_DIV = "body > div:nth-child(3) > div > div > div > div.ant-popover-inner > div.ant-popover-inner-content > div > div.user-config-editor-content-rows > div:nth-child(4) > div > div"
+
+# Кнопки в шестеренке
+RESET_BUTTON_SPAN = "body > div:nth-child(3) > div > div > div > div.ant-popover-inner > div.ant-popover-title > div > button > span"
+RESET_BUTTON = "body > div:nth-child(3) > div > div > div > div.ant-popover-inner > div.ant-popover-title > div > button"
+
+CANCEL_BUTTON_SPAN = "body > div:nth-child(3) > div > div > div > div.ant-popover-inner > div.ant-popover-inner-content > div > div.user-config-editor-content-footer > button.ant-btn.ant-btn-link.ant-btn-sm > span"
+CANCEL_BUTTON = "body > div:nth-child(3) > div > div > div > div.ant-popover-inner > div.ant-popover-inner-content > div > div.user-config-editor-content-footer > button.ant-btn.ant-btn-link.ant-btn-sm"
+
+SAVE_BUTTON_SPAN = "body > div:nth-child(3) > div > div > div > div.ant-popover-inner > div.ant-popover-inner-content > div > div.user-config-editor-content-footer > button.ant-btn.ant-btn-primary.ant-btn-sm > span"
+SAVE_BUTTON = "body > div:nth-child(3) > div > div > div > div.ant-popover-inner > div.ant-popover-inner-content > div > div.user-config-editor-content-footer > button.ant-btn.ant-btn-primary.ant-btn-sm"
 
 # Данные для поиска
 SEARCH_TESTS = [
@@ -302,6 +360,63 @@ def check_table_for_value(search_value, expected_column=None):
         return False, 0, []
 
 
+def check_table_columns_match_expected(expected_columns):
+    """
+    Проверяет, что в таблице присутствуют ожидаемые столбцы
+    expected_columns: список ожидаемых названий столбцов
+    """
+    print(f"\n🔍 ПРОВЕРКА СОПОСТАВЛЕНИЯ СТОЛБЦОВ:")
+    print(f"  Ожидаемые столбцы: {', '.join(expected_columns)}")
+
+    results = {}
+    all_found = True
+
+    try:
+        # Получаем все столбцы из таблицы
+        header_cells = driver.find_elements(By.CSS_SELECTOR, f"{TABLE_HEADER_SELECTOR} .BaseTable__header-cell")
+        table_columns = [cell.text.strip() for cell in header_cells if cell.text.strip()]
+
+        print(f"  Столбцов в таблице: {len(table_columns)}")
+
+        # Проверяем каждый ожидаемый столбец
+        for expected in expected_columns:
+            found = False
+            actual_name = ""
+
+            for table_col in table_columns:
+                if expected.lower() in table_col.lower() or table_col.lower() in expected.lower():
+                    found = True
+                    actual_name = table_col
+                    break
+
+            results[expected] = {
+                "found": found,
+                "actual_name": actual_name
+            }
+
+            if found:
+                print(f"  ✅ '{expected}' -> '{actual_name}'")
+            else:
+                print(f"  ❌ '{expected}' - НЕ НАЙДЕН")
+                all_found = False
+
+        return {
+            "success": all_found,
+            "results": results,
+            "table_columns_count": len(table_columns),
+            "table_columns": table_columns
+        }
+
+    except Exception as e:
+        print(f"✗ Ошибка при проверке сопоставления столбцов: {e}")
+        return {
+            "success": False,
+            "results": {},
+            "table_columns_count": 0,
+            "table_columns": []
+        }
+
+
 def check_column_settings():
     """
     Проверяет настройки столбцов в шестеренке и сверяет с таблицей
@@ -361,9 +476,6 @@ def check_column_settings():
                     popup = driver.find_element(By.CSS_SELECTOR, ".ant-popover")
                 except:
                     print("⚠ Не удалось найти попап настроек")
-                    # Пробуем сделать скриншот для отладки
-                    driver.save_screenshot("debug_screenshot.png")
-                    print("Скриншот сохранен как debug_screenshot.png")
                     return results
 
         print("✓ Попап найден")
@@ -480,22 +592,6 @@ def check_column_settings():
                                   "checked" in row_text.lower() or
                                   "выбран" in row_text.lower())
 
-                # Определяем номер строки для селектора чекбокса
-                try:
-                    # Пробуем найти родительский контейнер с индексом
-                    parent_divs = row.find_elements(By.XPATH,
-                                                    "./ancestor::div[contains(@class, 'user-config-editor-content-rows')]/div")
-                    if parent_divs:
-                        for idx, parent in enumerate(parent_divs, 1):
-                            if parent == row or row in parent.find_elements(By.XPATH, ".//*"):
-                                row_index = idx
-                                # Формируем селектор чекбокса
-                                checkbox_selector = CHECKBOX_BASE_SELECTOR.format(row_index)
-                                # print(f"  Селектор для строки {i}: {checkbox_selector}")
-                                break
-                except:
-                    pass
-
                 if is_checked:
                     results["columns_in_gear"]["checked"].append(column_name)
                     print(f"  ✓ [{i:3d}] {column_name}")
@@ -512,32 +608,31 @@ def check_column_settings():
         print(
             f"  • Всего столбцов: {len(results['columns_in_gear']['checked']) + len(results['columns_in_gear']['unchecked'])}")
 
-        # Выводим примеры отмеченных и неотмеченных столбцов
-        if results["columns_in_gear"]["checked"]:
-            print(f"  Примеры отмеченных: {', '.join(results['columns_in_gear']['checked'][:5])}")
-        if results["columns_in_gear"]["unchecked"]:
-            print(f"  Примеры неотмеченных: {', '.join(results['columns_in_gear']['unchecked'][:5])}")
-
         # 6. Закрываем шестеренку
         print("\n🚫 Закрываем шестеренку...")
         try:
             # Пробуем найти кнопку "Не сохранять" по селектору
             try:
-                cancel_button = driver.find_element(By.CSS_SELECTOR, SETTINGS_CANCEL_BUTTON_SELECTOR)
+                cancel_button = driver.find_element(By.CSS_SELECTOR, CANCEL_BUTTON_SPAN)
                 cancel_button.click()
                 print("✓ Нажали 'Не сохранять' (по селектору)")
             except:
-                # Пробуем найти кнопку "Не сохранять" по тексту
-                cancel_buttons = driver.find_elements(By.XPATH,
-                                                      "//button[contains(., 'Не сохранять') or contains(., 'Отмена') or contains(., 'Cancel')]")
-                if cancel_buttons:
-                    cancel_buttons[0].click()
-                    print("✓ Нажали 'Не сохранять' (по тексту)")
-                else:
-                    # Кликаем вне попапа
-                    actions = ActionChains(driver)
-                    actions.move_by_offset(10, 10).click().perform()
-                    print("✓ Кликнули вне попапа")
+                try:
+                    cancel_button = driver.find_element(By.CSS_SELECTOR, CANCEL_BUTTON)
+                    cancel_button.click()
+                    print("✓ Нажали 'Не сохранять'")
+                except:
+                    # Пробуем найти кнопку "Не сохранять" по тексту
+                    cancel_buttons = driver.find_elements(By.XPATH,
+                                                          "//button[contains(., 'Не сохранять') or contains(., 'Отмена') or contains(., 'Cancel')]")
+                    if cancel_buttons:
+                        cancel_buttons[0].click()
+                        print("✓ Нажали 'Не сохранять' (по тексту)")
+                    else:
+                        # Кликаем вне попапа
+                        actions = ActionChains(driver)
+                        actions.move_by_offset(10, 10).click().perform()
+                        print("✓ Кликнули вне попапа")
         except Exception as e:
             print(f"⚠ Не удалось закрыть шестеренку: {e}")
 
@@ -640,7 +735,7 @@ def check_column_settings():
             print("❌ НАЙДЕНЫ НЕСООТВЕТСТВИЯ!")
             print(f"   Всего проблем: {len(issues_found)}")
 
-            for issue in issues_found[:10]:  # Показываем первые 10 проблем
+            for issue in issues_found[:10]:
                 print(f"   • {issue}")
 
             if len(issues_found) > 10:
@@ -678,6 +773,504 @@ def click_element(selector, element_name):
         return False
 
 
+def open_settings_gear():
+    """
+    Открывает шестеренку настроек
+    """
+    print("\n🔧 Открываем шестеренку настроек...")
+    try:
+        # Пробуем найти кнопку шестеренки
+        gear_button = driver.find_element(By.CSS_SELECTOR, SETTINGS_GEAR_SELECTOR)
+        gear_button.click()
+        print("✓ Шестеренка открыта")
+        time.sleep(3)
+        return True
+    except:
+        print("⚠ Не удалось найти шестеренку, пробуем через родительский элемент")
+        try:
+            # Ищем кнопку-родитель
+            gear_parent = driver.find_element(By.CSS_SELECTOR,
+                                              "#root > section > section > div > div.mib-profile-control > div.mib-header-right-extra > div > div:nth-child(3) > button")
+            gear_parent.click()
+            print("✓ Кликнули на кнопку шестеренки через родителя")
+            time.sleep(3)
+            return True
+        except Exception as e:
+            print(f"✗ Не удалось открыть шестеренку: {e}")
+            return False
+
+
+def close_settings_gear(use_save=True):
+    """
+    Закрывает шестеренку настроек
+    use_save: True - сохранить, False - не сохранять
+    ВАЖНО: После сброса (reset) шестеренка закрывается автоматически,
+           кнопка "Сохранить" не нужна!
+    """
+    print("\n🚫 Закрываем шестеренку...")
+
+    # ЕСЛИ МЫ ТОЛЬКО ЧТО НАЖАЛИ "СБРОСИТЬ" - шестеренка закрывается автоматически
+    if not use_save:
+        # Просто ждем, когда шестеренка закроется
+        print("⏳ Ждем закрытия шестеренки после сброса...")
+        time.sleep(3)
+        return True
+
+    try:
+        if use_save:
+            # Нажимаем кнопку "Сохранить" - пробуем разные селекторы
+            try:
+                save_button = driver.find_element(By.CSS_SELECTOR, SAVE_BUTTON_SPAN)
+                save_button.click()
+                print("✓ Нажали кнопку 'Сохранить' (span)")
+            except:
+                try:
+                    save_button = driver.find_element(By.CSS_SELECTOR, SAVE_BUTTON)
+                    save_button.click()
+                    print("✓ Нажали кнопку 'Сохранить' (button)")
+                except:
+                    # Пробуем найти кнопку по тексту
+                    save_buttons = driver.find_elements(By.XPATH,
+                                                        "//button[contains(., 'Сохранить') or contains(., 'Save')]")
+                    if save_buttons:
+                        save_buttons[0].click()
+                        print("✓ Нажали 'Сохранить' (по тексту)")
+                    else:
+                        print("⚠ Кнопка 'Сохранить' не найдена (возможно, шестеренка уже закрыта)")
+                        return True  # Возвращаем True, т.к. шестеренка могла закрыться автоматически
+        else:
+            # Нажимаем кнопку "Не сохранять" - пробуем разные селекторы
+            try:
+                cancel_button = driver.find_element(By.CSS_SELECTOR, CANCEL_BUTTON_SPAN)
+                cancel_button.click()
+                print("✓ Нажали кнопку 'Не сохранять' (span)")
+            except:
+                try:
+                    cancel_button = driver.find_element(By.CSS_SELECTOR, CANCEL_BUTTON)
+                    cancel_button.click()
+                    print("✓ Нажали кнопку 'Не сохранять' (button)")
+                except:
+                    # Пробуем найти кнопку по тексту
+                    cancel_buttons = driver.find_elements(By.XPATH,
+                                                          "//button[contains(., 'Не сохранять') or contains(., 'Отмена') or contains(., 'Cancel')]")
+                    if cancel_buttons:
+                        cancel_buttons[0].click()
+                        print("✓ Нажали 'Не сохранять' (по тексту)")
+                    else:
+                        print("✗ Не удалось найти кнопку 'Не сохранять'")
+                        return False
+
+        # Ждем применения настроек
+        print("⏳ Ждем применения настроек (3 секунды)...")
+        time.sleep(3)
+        return True
+    except Exception as e:
+        print(f"⚠ Не удалось закрыть шестеренку: {e}")
+        return True  # Все равно возвращаем True, т.к. шестеренка могла закрыться
+
+
+def toggle_period_checkbox(enable=False):
+    """
+    Включает или выключает чекбокс "Период"
+    enable: True - включить, False - выключить
+    """
+    action = "включаем" if enable else "выключаем"
+    print(f"\n🔘 {action.capitalize()} чекбокс 'Период'...")
+
+    try:
+        # Пробуем кликнуть по input
+        try:
+            checkbox = driver.find_element(By.CSS_SELECTOR, PERIOD_CHECKBOX_INPUT)
+            is_checked = checkbox.is_selected() or checkbox.get_attribute("checked") is not None
+
+            if is_checked != enable:
+                # Находим родительский label для клика
+                try:
+                    label = checkbox.find_element(By.XPATH, "..")
+                    label.click()
+                except:
+                    # Если не нашли label, кликаем по div
+                    try:
+                        div = driver.find_element(By.CSS_SELECTOR, PERIOD_CHECKBOX_DIV)
+                        div.click()
+                    except:
+                        checkbox.click()
+
+                print(f"✓ Чекбокс 'Период' {'включен' if enable else 'выключен'}")
+            else:
+                print(f"ℹ️  Чекбокс 'Период' уже {'включен' if enable else 'выключен'}")
+
+        except Exception as e:
+            print(f"⚠ Не удалось переключить чекбокс 'Период' через input: {e}")
+
+            # Пробуем кликнуть по div
+            try:
+                div = driver.find_element(By.CSS_SELECTOR, PERIOD_CHECKBOX_DIV)
+                div.click()
+                print(f"✓ Чекбокс 'Период' переключен через div")
+            except Exception as e2:
+                print(f"✗ Не удалось переключить чекбокс 'Период': {e2}")
+                return False
+
+        time.sleep(1)
+        return True
+    except Exception as e:
+        print(f"✗ Не удалось найти или переключить чекбокс 'Период': {e}")
+        return False
+
+
+def toggle_category_checkbox(enable=False):
+    """
+    Включает или выключает чекбокс "Категория"
+    enable: True - включить, False - выключить
+    """
+    action = "включаем" if enable else "выключаем"
+    print(f"\n🔘 {action.capitalize()} чекбокс 'Категория'...")
+
+    try:
+        # Пробуем кликнуть по input
+        try:
+            checkbox = driver.find_element(By.CSS_SELECTOR, CATEGORY_CHECKBOX_INPUT)
+            is_checked = checkbox.is_selected() or checkbox.get_attribute("checked") is not None
+
+            if is_checked != enable:
+                # Находим родительский label для клика
+                try:
+                    label = checkbox.find_element(By.XPATH, "..")
+                    label.click()
+                except:
+                    # Если не нашли label, кликаем по div
+                    try:
+                        div = driver.find_element(By.CSS_SELECTOR, CATEGORY_CHECKBOX_DIV)
+                        div.click()
+                    except:
+                        checkbox.click()
+
+                print(f"✓ Чекбокс 'Категория' {'включен' if enable else 'выключен'}")
+            else:
+                print(f"ℹ️  Чекбокс 'Категория' уже {'включен' if enable else 'выключен'}")
+
+        except Exception as e:
+            print(f"⚠ Не удалось переключить чекбокс 'Категория' через input: {e}")
+
+            # Пробуем кликнуть по div
+            try:
+                div = driver.find_element(By.CSS_SELECTOR, CATEGORY_CHECKBOX_DIV)
+                div.click()
+                print(f"✓ Чекбокс 'Категория' переключен через div")
+            except Exception as e2:
+                print(f"✗ Не удалось переключить чекбокс 'Категория': {e2}")
+                return False
+
+        time.sleep(1)
+        return True
+    except Exception as e:
+        print(f"✗ Не удалось найти или переключить чекбокс 'Категория': {e}")
+        return False
+
+
+def click_reset_button():
+    """
+    Нажимает кнопку "Сбросить" в шестеренке
+    """
+    print("\n🔄 Нажимаем кнопку 'Сбросить'...")
+
+    try:
+        # Пробуем разные селекторы для кнопки сброса
+        try:
+            reset_button = driver.find_element(By.CSS_SELECTOR, RESET_BUTTON_SPAN)
+            reset_button.click()
+            print("✓ Кнопка 'Сбросить' нажата (span)")
+        except:
+            try:
+                reset_button = driver.find_element(By.CSS_SELECTOR, RESET_BUTTON)
+                reset_button.click()
+                print("✓ Кнопка 'Сбросить' нажата (button)")
+            except:
+                # Пробуем найти кнопку по тексту
+                reset_buttons = driver.find_elements(By.XPATH,
+                                                     "//button[contains(., 'Сбросить') or contains(., 'Reset')]")
+                if reset_buttons:
+                    reset_buttons[0].click()
+                    print("✓ Кнопка 'Сбросить' нажата (по тексту)")
+                else:
+                    print("✗ Не удалось найти кнопку 'Сбросить'")
+                    return False
+
+        # УВЕЛИЧИВАЕМ ВРЕМЯ ОЖИДАНИЯ
+        print("⏳ Ждем применения сброса (4 секунды)...")
+        time.sleep(4)
+
+        return True
+    except Exception as e:
+        print(f"✗ Ошибка при нажатии кнопки 'Сбросить': {e}")
+        return False
+
+
+def reset_gear_settings():
+    """
+    Сбрасывает настройки шестеренки перед началом тестов
+    """
+    print("\n" + "=" * 50)
+    print("ПОДГОТОВКА: СБРАСЫВАЕМ НАСТРОЙКИ ШЕСТЕРЕНКИ")
+    print("=" * 50)
+
+    try:
+        # Открываем шестеренку
+        if open_settings_gear():
+            # Нажимаем кнопку "Сбросить"
+            if click_reset_button():
+                # ВАЖНО: После сброса шестеренка закрывается автоматически
+                # Не нужно вызывать close_settings_gear()!
+                print("⏳ Шестеренка закрывается автоматически...")
+                time.sleep(3)
+
+                print("✓ Настройки шестеренки сброшены")
+
+                # Ждем загрузки таблицы
+                wait_for_page_load()
+                time.sleep(2)
+                return True
+            else:
+                print("✗ Не удалось нажать кнопку 'Сбросить'")
+                return False
+        else:
+            print("✗ Не удалось открыть шестеренку")
+            return False
+
+    except Exception as e:
+        print(f"✗ Ошибка при сбросе настроек шестеренки: {e}")
+        return False
+
+
+def test_gear_functionality():
+    """
+    Тестирует функциональность шестеренки:
+    1. Проверяем исходное состояние (после сброса)
+    2. Снимаем чекбоксы "Период" и "Категория" и проверяем
+    3. Добавляем только чекбокс "Категория" обратно и проверяем
+    4. Сбрасываем настройки и проверяем восстановление
+    5. Проверяем соответствие настроек
+    """
+    print("\n" + "=" * 60)
+    print("ТЕСТИРОВАНИЕ ФУНКЦИОНАЛЬНОСТИ ШЕСТЕРЕНКИ")
+    print("=" * 60)
+
+    results = {
+        "test1_success": False,
+        "test2_success": False,
+        "test3_success": False,
+        "test4_success": False,
+        "test5_success": False
+    }
+
+    try:
+        # ТЕСТ 1: Проверка исходного состояния (после общего сброса)
+        print("\n" + "-" * 50)
+        print("ТЕСТ 1: ПРОВЕРКА ИСХОДНОГО СОСТОЯНИЯ")
+        print("-" * 50)
+
+        print("🔍 Проверяем столбцы в таблице после общего сброса...")
+        match_results = check_table_columns_match_expected(["период", "категория"])
+
+        if match_results["success"]:
+            print("✅ ТЕСТ 1 ПРОЙДЕН: Оба столбца присутствуют после общего сброса")
+            results["test1_success"] = True
+        else:
+            print("❌ ТЕСТ 1 НЕ ПРОЙДЕН: Не все столбцы присутствуют после сброса")
+            results["test1_success"] = False
+
+        time.sleep(2)
+
+        # ТЕСТ 2: Снимаем чекбоксы "Период" и "Категория"
+        print("\n" + "-" * 50)
+        print("ТЕСТ 2: СНИМАЕМ ЧЕКБОКСЫ 'ПЕРИОД' И 'КАТЕГОРИЯ'")
+        print("-" * 50)
+
+        if open_settings_gear():
+            # Снимаем оба чекбокса
+            period_removed = toggle_period_checkbox(enable=False)
+            category_removed = toggle_category_checkbox(enable=False)
+
+            if period_removed and category_removed:
+                print("✓ Оба чекбокса сняты (Период и Категория)")
+
+                # Сохраняем изменения
+                if close_settings_gear(use_save=True):
+                    print("✓ Изменения сохранены")
+
+                    # Ждем загрузки таблицы
+                    wait_for_page_load()
+                    time.sleep(2)
+
+                    # Проверяем, что столбцов нет в таблице
+                    match_results = check_table_columns_match_expected(["период", "категория"])
+
+                    # Оба столбца должны ОТСУТСТВОВАТЬ
+                    period_found = match_results["results"].get("период", {}).get("found", True)
+                    category_found = match_results["results"].get("категория", {}).get("found", True)
+
+                    if not period_found and not category_found:
+                        print("✅ ТЕСТ 2 ПРОЙДЕН: Оба столбца отсутствуют в таблице")
+                        results["test2_success"] = True
+                    else:
+                        print("❌ ТЕСТ 2 НЕ ПРОЙДЕН: Не все столбцы удалены из таблице")
+                        results["test2_success"] = False
+                else:
+                    print("✗ Не удалось сохранить изменения")
+                    results["test2_success"] = False
+            else:
+                print("✗ Не удалось снять все чекбоксы")
+                results["test2_success"] = False
+        else:
+            print("✗ Не удалось открыть шестеренку")
+            results["test2_success"] = False
+
+        time.sleep(2)
+
+        # ТЕСТ 3: Добавляем только чекбокс "Категория" обратно
+        print("\n" + "-" * 50)
+        print("ТЕСТ 3: ДОБАВЛЯЕМ ТОЛЬКО ЧЕКБОКС 'КАТЕГОРИЯ' ОБРАТНО")
+        print("-" * 50)
+
+        if open_settings_gear():
+            # Добавляем только чекбокс "Категория"
+            category_added = toggle_category_checkbox(enable=True)
+
+            if category_added:
+                print("✓ Чекбокс 'Категория' добавлен")
+
+                # Сохраняем изменения
+                if close_settings_gear(use_save=True):
+                    print("✓ Изменения сохранены")
+
+                    # Ждем загрузки таблицы
+                    wait_for_page_load()
+                    time.sleep(2)
+
+                    # Проверяем столбцы в таблице
+                    match_results = check_table_columns_match_expected(["период", "категория"])
+
+                    # "Категория" должна быть, "Период" - нет
+                    period_found = match_results["results"].get("период", {}).get("found", True)
+                    category_found = match_results["results"].get("категория", {}).get("found", True)
+
+                    if category_found and not period_found:
+                        print("✅ ТЕСТ 3 ПРОЙДЕН: 'Категория' присутствует, 'Период' отсутствует")
+                        results["test3_success"] = True
+                    else:
+                        print("❌ ТЕСТ 3 НЕ ПРОЙДЕН: Неправильное состояние столбцов")
+                        results["test3_success"] = False
+                else:
+                    print("✗ Не удалось сохранить изменения")
+                    results["test3_success"] = False
+            else:
+                print("✗ Не удалось добавить чекбокс 'Категория'")
+                results["test3_success"] = False
+        else:
+            print("✗ Не удалось открыть шестеренку")
+            results["test3_success"] = False
+
+        time.sleep(2)
+
+        # ТЕСТ 4: Сбрасываем настройки шестеренки
+        print("\n" + "-" * 50)
+        print("ТЕСТ 4: СБРАСЫВАЕМ НАСТРОЙКИ ШЕСТЕРЕНКИ")
+        print("-" * 50)
+
+        if open_settings_gear():
+            # Нажимаем кнопку "Сбросить"
+            if click_reset_button():
+                print("✓ Кнопка 'Сбросить' нажата")
+
+                # ВАЖНО: После сброса шестеренка ЗАКРЫВАЕТСЯ АВТОMATICALLY
+                # Не нужно вызывать close_settings_gear()!
+                print("⏳ Шестеренка закрывается автоматически после сброса...")
+                time.sleep(3)  # Даем время для закрытия
+
+                # Ждем обновления страницы
+                print("⏳ Ждем обновления таблицы после сброса...")
+                wait_for_page_load()
+                time.sleep(2)
+
+                # Проверяем столбцы в таблице
+                match_results = check_table_columns_match_expected(["период", "категория"])
+
+                # УПРОЩАЕМ ПРОВЕРКУ: Если оба столбца найдены, тест пройден
+                period_found = match_results["results"].get("период", {}).get("found", False)
+                category_found = match_results["results"].get("категория", {}).get("found", False)
+
+                print(f"\n📊 РЕЗУЛЬТАТЫ ПРОВЕРКИ ПОСЛЕ СБРОСА:")
+                print(f"  • Столбец 'Период': {'✅ НАЙДЕН' if period_found else '❌ НЕ НАЙДЕН'}")
+                print(f"  • Столбец 'Категория': {'✅ НАЙДЕН' if category_found else '❌ НЕ НАЙДЕН'}")
+
+                # ТЕСТ ПРОЙДЕН, ЕСЛИ ОБА СТОЛБЦА НАЙДЕНЫ
+                if period_found and category_found:
+                    print("\n✅ ТЕСТ 4 ПРОЙДЕН: После сброса оба столбца присутствуют в таблице")
+                    results["test4_success"] = True
+                else:
+                    print("\n❌ ТЕСТ 4 НЕ ПРОЙДЕН: После сброса не все столбцы вернулись в таблицу")
+                    results["test4_success"] = False
+            else:
+                print("✗ Не удалось нажать кнопку 'Сбросить'")
+                results["test4_success"] = False
+        else:
+            print("✗ Не удалось открыть шестеренку")
+            results["test4_success"] = False
+
+        time.sleep(2)
+
+        # ТЕСТ 5: Проверяем соответствие настроек
+        print("\n" + "-" * 50)
+        print("ТЕСТ 5: ПРОВЕРКА СООТВЕТСТВИЯ НАСТРОЕК")
+        print("-" * 50)
+
+        # Проверяем настройки шестеренки и их соответствие таблице
+        column_settings_results = check_column_settings()
+
+        if column_settings_results["match_success"]:
+            print("✅ ТЕСТ 5 ПРОЙДЕН: Настройки шестеренки соответствуют таблице")
+            results["test5_success"] = True
+        else:
+            print("❌ ТЕСТ 5 НЕ ПРОЙДЕН: Настройки шестеренки не соответствуют таблице")
+            results["test5_success"] = False
+
+        # ИТОГИ ТЕСТИРОВАНИЯ
+        print("\n" + "=" * 50)
+        print("ИТОГИ ТЕСТИРОВАНИЯ ШЕСТЕРЕНКИ")
+        print("=" * 50)
+
+        all_passed = True
+        test_names = [
+            "Проверка исходного состояния",
+            "Удаление 'Период' и 'Категория'",
+            "Добавление только 'Категория'",
+            "Сброс настроек",
+            "Проверка соответствия"
+        ]
+
+        for i, test_name in enumerate(test_names, 1):
+            test_key = f"test{i}_success"
+            if results[test_key]:
+                print(f"ТЕСТ {i} ({test_name}): ✅ ПРОЙДЕН")
+            else:
+                print(f"ТЕСТ {i} ({test_name}): ❌ НЕ ПРОЙДЕН")
+                all_passed = False
+
+        if all_passed:
+            print("\n🎉 ВСЕ ТЕСТЫ ШЕСТЕРЕНКИ ПРОЙДЕНЫ УСПЕШНО!")
+        else:
+            print("\n⚠ НЕКОТОРЫЕ ТЕСТЫ НЕ ПРОЙДЕНЫ")
+
+        return results
+
+    except Exception as e:
+        print(f"✗ Критическая ошибка при тестировании шестеренки: {e}")
+        import traceback
+        traceback.print_exc()
+        return results
+
+
 # ============================================
 # ОСНОВНОЙ СКРИПТ
 # ============================================
@@ -691,6 +1284,7 @@ results = {
     "preparation_steps": [],
     "search_tests": [],
     "column_settings_test": None,
+    "gear_functionality_test": None,
     "times": {}
 }
 
@@ -832,15 +1426,35 @@ clear_search()
 wait_for_page_load()
 time.sleep(1)
 
-# 9. ПРОВЕРКА ШЕСТЕРЕНКИ (НАСТРОЙКИ СТОЛБЦОВ)
+# 9. СБРОС НАСТРОЕК ШЕСТЕРЕНКИ ПЕРЕД ТЕСТИРОВАНИЕМ
 print("\n" + "=" * 50)
-print("ШАГ 9: ПРОВЕРКА НАСТРОЕК СТОЛБЦОВ (ШЕСТЕРЕНКА)")
+print("ШАГ 9: СБРОС НАСТРОЕК ШЕСТЕРЕНКИ ПЕРЕД ТЕСТИРОВАНИЕМ")
+print("=" * 50)
+
+reset_success = reset_gear_settings()
+if reset_success:
+    results["preparation_steps"].append("Сброс настроек шестеренки - УСПЕШНО")
+    print("✓ Настройки шестеренки сброшены перед тестированием")
+else:
+    print("⚠ Не удалось сбросить настройки шестеренки")
+
+# 10. ПРОВЕРКА ШЕСТЕРЕНКИ (НАСТРОЙКИ СТОЛБЦОВ)
+print("\n" + "=" * 50)
+print("ШАГ 10: ПРОВЕРКА НАСТРОЕК СТОЛБЦОВ (ШЕСТЕРЕНКА)")
 print("=" * 50)
 
 column_settings_results = check_column_settings()
 results["column_settings_test"] = column_settings_results
 
-# 10. ИТОГОВЫЙ ОТЧЕТ
+# 11. ТЕСТИРОВАНИЕ ФУНКЦИОНАЛЬНОСТИ ШЕСТЕРЕНКИ
+print("\n" + "=" * 50)
+print("ШАГ 11: ТЕСТИРОВАНИЕ ФУНКЦИОНАЛЬНОСТИ ШЕСТЕРЕНКИ")
+print("=" * 50)
+
+gear_functionality_results = test_gear_functionality()
+results["gear_functionality_test"] = gear_functionality_results
+
+# 12. ИТОГОВЫЙ ОТЧЕТ
 print("\n" + "=" * 60)
 print("ИТОГОВЫЙ ОТЧЕТ")
 print("=" * 60)
@@ -897,6 +1511,34 @@ if results["column_settings_test"]:
 else:
     print("✗ Проверка шестеренки не выполнена")
 
+print(f"\n🎯 РЕЗУЛЬТАТЫ ТЕСТИРОВАНИЯ ФУНКЦИОНАЛЬНОСТИ ШЕСТЕРЕНКИ:")
+print("-" * 80)
+
+if results["gear_functionality_test"]:
+    gear_func = results["gear_functionality_test"]
+
+    test_descriptions = [
+        "Проверка исходного состояния",
+        "Удаление 'Период' и 'Категория'",
+        "Добавление только 'Категория'",
+        "Сброс настроек",
+        "Проверка соответствия"
+    ]
+
+    for i in range(1, 6):
+        test_key = f"test{i}_success"
+        status = "✅ ПРОЙДЕН" if gear_func[test_key] else "❌ НЕ ПРОЙДЕН"
+        print(f"ТЕСТ {i} ({test_descriptions[i - 1]}): {status}")
+
+    gear_func_passed = all([gear_func[f"test{i}_success"] for i in range(1, 6)])
+
+    if gear_func_passed:
+        print("\n✅ ВСЕ ТЕСТЫ ФУНКЦИОНАЛЬНОСТИ ПРОЙДЕНЫ!")
+    else:
+        print("\n⚠ НЕКОТОРЫЕ ТЕСТЫ ФУНКЦИОНАЛЬНОСТИ НЕ ПРОЙДЕНЫ")
+else:
+    print("✗ Тестирование функциональности шестеренки не выполнено")
+
 print("-" * 80)
 
 print(f"\n📋 ОБЩИЙ ИТОГ:")
@@ -904,13 +1546,18 @@ print("-" * 40)
 
 preparation_ok = all(["УСПЕШНО" in step for step in results["preparation_steps"]])
 search_ok = search_tests_passed
-gear_ok = results["column_settings_test"] and results["column_settings_test"]["match_success"]
+gear_check_ok = results["column_settings_test"] and results["column_settings_test"]["match_success"]
+gear_func_ok = results["gear_functionality_test"] and all(
+    [results["gear_functionality_test"][f"test{i}_success"] for i in range(1, 6)])
 
 print(f"Подготовительные шаги: {'✅' if preparation_ok else '❌'}")
 print(f"Тесты поиска: {'✅' if search_ok else '❌'}")
-print(f"Проверка шестеренки: {'✅' if gear_ok else '❌'}")
+print(f"Проверка шестеренки: {'✅' if gear_check_ok else '❌'}")
+print(f"Тесты функциональности: {'✅' if gear_func_ok else '❌'}")
 
-if preparation_ok and search_ok and gear_ok:
+all_tests_passed = preparation_ok and search_ok and gear_check_ok and gear_func_ok
+
+if all_tests_passed:
     print("\n🎉 ВСЕ ТЕСТЫ ПРОЙДЕНЫ УСПЕШНО!")
 else:
     print("\n⚠ ИМЕЮТСЯ ОШИБКИ В ВЫПОЛНЕНИИ")
@@ -918,8 +1565,7 @@ else:
 print("-" * 40)
 print(f"\n{'=' * 60}")
 
-# Пауза для просмотра результата
-input("\nНажмите Enter для закрытия браузера...")
+
 
 # Закрытие браузера
 try:
