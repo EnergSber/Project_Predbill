@@ -1,4 +1,4 @@
-"""ЦЕЛЬ: Комплексная проверка работоспособности всех разделов системы Predbilling.
+'''ЦЕЛЬ: Комплексная проверка работоспособности всех разделов системы Predbilling.
 
 ОПИСАНИЕ ТЕСТА:
 1. АВТОРИЗАЦИЯ:
@@ -22,8 +22,8 @@
 - Подробный отчет с статистикой и списком ошибок
 
 
-РЕЗУЛЬТАТ: Детальный отчет о работоспособности всех разделов системы
-"""
+РЕЗУЛЬТАТ: Детальный отчет о работоспособности всех разделов системы'''
+
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -90,7 +90,7 @@ def add_error(section_name, error_text, section_errors_list):
     if error_text not in section_errors_list:
         section_errors_list.append(error_text)
         total_errors_count += 1
-        print(f"⚠ {error_text}")
+        print(f"ОШИБКА: {error_text}")
 
     return section_errors_list
 
@@ -117,18 +117,18 @@ def click_svg_element(svg_selector, action_name):
         # Кликаем на родительскую кнопку
         parent_button = svg_element.find_element(By.XPATH, "..")
         parent_button.click()
-        print(f"✓ {action_name}")
+        print(f"ВЫПОЛНЕНО: {action_name}")
         time.sleep(0.3)
         return True
 
     except Exception as e:
-        print(f"✗ Не удалось {action_name}: {e}")
+        print(f"НЕ УДАЛОСЬ {action_name}: {e}")
 
         # Пробуем через JavaScript
         try:
             element = driver.find_element(By.CSS_SELECTOR, svg_selector)
             driver.execute_script("arguments[0].click();", element)
-            print(f"✓ {action_name} (через JavaScript)")
+            print(f"ВЫПОЛНЕНО: {action_name} (через JavaScript)")
             time.sleep(0.3)
             return True
         except:
@@ -137,7 +137,7 @@ def click_svg_element(svg_selector, action_name):
 
 def smart_wait_for_errors_disappear():
     """Умное ожидание исчезновения ошибок на странице с возможностью закрытия"""
-    print(f"\n⏳ Умное ожидание исчезновения ошибок...")
+    print(f"\nУмное ожидание исчезновения ошибок...")
 
     start_wait_time = time.time()
     max_wait_time = 5
@@ -168,14 +168,14 @@ def smart_wait_for_errors_disappear():
                                     # Если не получается, пробуем через JavaScript
                                     driver.execute_script("arguments[0].click();", btn)
 
-                                print(f"  ✓ Найден и кликнут крестик")
+                                print(f"  Найден и кликнут крестик")
                                 time.sleep(0.2)
                                 return True
                         except:
                             # Пробуем клик через JavaScript даже если элемент не видим
                             try:
                                 driver.execute_script("arguments[0].click();", btn)
-                                print(f"  ✓ Кликнут крестик через JS")
+                                print(f"  Кликнут крестик через JS")
                                 time.sleep(0.2)
                                 return True
                             except:
@@ -189,7 +189,7 @@ def smart_wait_for_errors_disappear():
                 for btn in close_buttons:
                     try:
                         driver.execute_script("arguments[0].click();", btn)
-                        print(f"  ✓ Кликнут крестик по тексту")
+                        print(f"  Кликнут крестик по тексту")
                         time.sleep(0.2)
                         return True
                     except:
@@ -200,13 +200,13 @@ def smart_wait_for_errors_disappear():
             return False
 
         except Exception as e:
-            print(f"  ⚠ Ошибка при попытке закрыть ошибку: {e}")
+            print(f"  Ошибка при попытке закрыть ошибку: {e}")
             return False
 
 
 def wait_for_page_load(section_name):
     """Ожидание полной загрузки страницы с отслеживанием времени"""
-    print("\n⏳ Ожидание загрузки данных...")
+    print("\nОжидание загрузки данных...")
 
     load_start = time.time()
 
@@ -240,11 +240,11 @@ def wait_for_page_load(section_name):
                             # Если это спиннер
                             if ("ant-spin-spinning" in element_class or
                                     "anticon-spin" in element_class):
-                                print(f"  ⏳ Найден спиннер загрузки, ожидаем...")
+                                print(f"  Найден спиннер загрузки, ожидаем...")
 
                                 # Ждем пока элемент станет невидимым
                                 wait.until(EC.invisibility_of_element(element))
-                                print(f"  ✓ Спиннер исчез")
+                                print(f"  Спиннер исчез")
 
                     except Exception as e:
                         continue
@@ -265,21 +265,21 @@ def wait_for_page_load(section_name):
                 for element in elements:
                     try:
                         if element.is_displayed():
-                            print(f"  ⏳ Ожидание исчезновения '{text_msg}'...")
+                            print(f"  Ожидание исчезновения '{text_msg}'...")
                             wait.until(EC.invisibility_of_element(element))
-                            print(f"  ✓ '{text_msg}' исчез")
+                            print(f"  '{text_msg}' исчез")
                     except:
                         continue
             except:
                 continue
 
         load_duration = time.time() - load_start
-        print(f"✓ Загрузка данных завершена за {load_duration:.1f} секунд")
+        print(f"Загрузка данных завершена за {load_duration:.1f} секунд")
 
         return load_duration
 
     except Exception as e:
-        print(f"  ⚠ Ошибка при ожидании загрузки: {e}")
+        print(f"  Ошибка при ожидании загрузки: {e}")
         return time.time() - load_start
 
     def check_for_persistent_errors():
@@ -322,25 +322,25 @@ def wait_for_page_load(section_name):
 
                 # Если ошибка держится больше 0.5 секунды, пытаемся закрыть
                 if elapsed > 0.5:
-                    print(f"  ⏳ Ошибка держится {elapsed:.1f}с, пробуем закрыть...")
+                    print(f"  Ошибка держится {elapsed:.1f}с, пробуем закрыть...")
                     if try_close_error():
-                        print(f"  ✓ Попытка закрытия выполнена")
+                        print(f"  Попытка закрытия выполнена")
                         time.sleep(0.5)
                     else:
-                        print(f"  ⚠ Не удалось найти кнопку закрытия")
+                        print(f"  Не удалось найти кнопку закрытия")
 
                 time.sleep(0.5)
             else:
                 # Ошибок нет
-                print(f"✓ Ошибки исчезли")
+                print(f"Ошибки исчезли")
                 return True
 
         # Если вышли по таймауту
-        print(f"⚠ Ошибки не исчезли за {max_wait_time} секунд, продолжаем...")
+        print(f"Ошибки не исчезли за {max_wait_time} секунд, продолжаем...")
         return False
 
     except Exception as e:
-        print(f"⚠ Исключение в умном ожидании: {e}")
+        print(f"Исключение в умном ожидании: {e}")
         return False
 
 
@@ -367,10 +367,10 @@ try:
 
     # Проверка входа - ждем изменения URL
     wait.until_not(EC.url_contains('login'))
-    print("✓ Авторизация успешна (URL изменился)")
+    print("Авторизация успешна (URL изменился)")
 
 except Exception as e:
-    print(f"✗ Авторизация не удалась: {e}")
+    print(f"Авторизация не удалась: {e}")
 
 
 # Проверка раздела
@@ -388,7 +388,7 @@ def test_section(section_url, section_name, check_filters=True, table_type='defa
     try:
         driver.get(section_url)
         wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
-        print(f"✓ Переход в {section_name}")
+        print(f"Переход в {section_name}")
         time.sleep(0.5)
     except Exception as e:
         section_errors = add_error(section_name, f"Не удалось перейти: {e}", section_errors)
@@ -428,7 +428,7 @@ def test_section(section_url, section_name, check_filters=True, table_type='defa
             continue
 
     if not error_found:
-        print(f"✓ Явных ошибок не найдено")
+        print(f"Явных ошибок не найдено")
     else:
         # Вызываем умное ожидание с возможностью закрытия ошибок
         smart_wait_for_errors_disappear()
@@ -463,7 +463,7 @@ def test_section(section_url, section_name, check_filters=True, table_type='defa
                     try:
                         element = driver.find_element(By.CSS_SELECTOR, alt_selector)
                         driver.execute_script("arguments[0].click();", element)
-                        print(f"✓ Открыть фильтр (через альтернативный селектор)")
+                        print(f"Открыть фильтр (через альтернативный селектор)")
                         filter_clicked = True
                         break
                     except:
@@ -501,7 +501,7 @@ def test_section(section_url, section_name, check_filters=True, table_type='defa
                     try:
                         element = driver.find_element(By.CSS_SELECTOR, alt_selector)
                         driver.execute_script("arguments[0].click();", element)
-                        print(f"✓ Сбросить фильтры (через альтернативный селектор)")
+                        print(f"Сбросить фильтры (через альтернативный селектор)")
                         reset_clicked = True
                         break
                     except:
@@ -522,7 +522,7 @@ def test_section(section_url, section_name, check_filters=True, table_type='defa
     # Теперь ждем загрузку данных ПОСЛЕ сброса фильтров
     # Если был сброс фильтров, начинаем отсчет времени с момента сброса
     if check_filters and filter_reset_time:
-        print(f"⏳ Ожидание загрузки после сброса фильтров...")
+        print(f"Ожидание загрузки после сброса фильтров...")
         load_start_time = filter_reset_time
     else:
         load_start_time = time.time()
@@ -558,7 +558,7 @@ def test_section(section_url, section_name, check_filters=True, table_type='defa
                     continue
 
             if found_elements:
-                print(f"✓ Найдено элементов: {len(found_elements)}")
+                print(f"Найдено элементов: {len(found_elements)}")
                 total_data_items = 0
 
                 for i, element in enumerate(found_elements, 1):
@@ -581,10 +581,10 @@ def test_section(section_url, section_name, check_filters=True, table_type='defa
                                 continue
 
                         if data_rows:
-                            print(f"    ✓ Данные в таблице #{i}: {len(data_rows)} строк")
+                            print(f"    Данные в таблице #{i}: {len(data_rows)} строк")
                             total_data_items += len(data_rows)
                         else:
-                            print(f"    ⚠ Таблица #{i} пуста")
+                            print(f"    Таблица #{i} пуста")
 
                     elif element_text and len(element_text) > 5:
                         total_data_items += 1
@@ -592,7 +592,7 @@ def test_section(section_url, section_name, check_filters=True, table_type='defa
                 if total_data_items == 0:
                     section_errors = add_error(section_name, "Нет данных в элементах", section_errors)
                 else:
-                    print(f"✓ Всего найдено данных: {total_data_items}")
+                    print(f"Всего найдено данных: {total_data_items}")
 
             else:
                 section_errors = add_error(section_name, "Не найдены элементы", section_errors)
@@ -617,7 +617,7 @@ def test_section(section_url, section_name, check_filters=True, table_type='defa
                     continue
 
             if data_rows:
-                print(f"✓ Данные в таблице: {len(data_rows)} строк")
+                print(f"Данные в таблице: {len(data_rows)} строк")
             else:
                 section_errors = add_error(section_name, "Нет данных в таблице", section_errors)
 
@@ -880,7 +880,7 @@ total_sections = len(all_results)
 sections_with_errors = sum(1 for result in all_results.values() if result['error_count'] > 0)
 sections_ok = total_sections - sections_with_errors
 
-print(f"\n📊 ОБЩАЯ СТАТИСТИКА:")
+print(f"\nОБЩАЯ СТАТИСТИКА:")
 print(f"{'─' * 40}")
 print(f"   • Всего проверено разделов: {total_sections}")
 print(f"   • Без ошибок: {sections_ok}")
@@ -912,7 +912,7 @@ if load_times:
                 max_section = section_name
                 break
 
-        print(f"\n⏱️  СТАТИСТИКА ВРЕМЕНИ ЗАГРУЗКИ (после сброса фильтров):")
+        print(f"\nСТАТИСТИКА ВРЕМЕНИ ЗАГРУЗКИ (после сброса фильтров):")
         print(f"{'─' * 40}")
         print(f"   • Общее время загрузки: {total_duration:.1f} сек")
         #print(f"   • Среднее время на раздел: {avg_duration:.1f} сек")
@@ -926,7 +926,7 @@ if load_times:
             if duration > 0:
                 print(f"      {i}. {section}: {duration:.1f} сек")
 
-print(f"\n📋 РЕЗУЛЬТАТЫ ПО РАЗДЕЛАМ:")
+print(f"\nРЕЗУЛЬТАТЫ ПО РАЗДЕЛАМ:")
 print(f"{'─' * 60}")
 
 for section_name, result in all_results.items():
@@ -936,18 +936,18 @@ for section_name, result in all_results.items():
 
     if result['error_count'] == 0:
         if duration > 0:
-            print(f"   ✅ {section_name} [{duration:.1f} сек]")
+            print(f"   УСПЕХ {section_name} [{duration:.1f} сек]")
         else:
-            print(f"   ✅ {section_name}")
+            print(f"   УСПЕХ {section_name}")
     else:
         # Берем только уникальные ошибки в разделе (без дублей по тексту)
         unique_errors = list(set(result['errors']))
         if duration > 0:
-            print(f"   ❌ {section_name} - {len(unique_errors)} ошиб. [{duration:.1f} сек]")
+            print(f"   ОШИБКА {section_name} - {len(unique_errors)} ошиб. [{duration:.1f} сек]")
         else:
-            print(f"   ❌ {section_name} - {len(unique_errors)} ошиб.")
+            print(f"   ОШИБКА {section_name} - {len(unique_errors)} ошиб.")
 
-print(f"\n📋 СПИСОК ОШИБОК ПО РАЗДЕЛАМ:")
+print(f"\nСПИСОК ОШИБОК ПО РАЗДЕЛАМ:")
 print(f"{'─' * 80}")
 
 # Собираем разделы с ошибками
@@ -959,7 +959,7 @@ for section_name, result in all_results.items():
 # Выводим ошибки по каждому разделу отдельно
 for section_name in sections_with_errors_list:
     result = all_results[section_name]
-    print(f"\n🔴 {section_name}:")
+    print(f"\nОШИБКИ В РАЗДЕЛЕ {section_name}:")
     print(f"   {'─' * 40}")
 
     # Берем только уникальные ошибки в разделе (без дублей по тексту)
@@ -986,8 +986,8 @@ print(f"\n{'═' * 50}")
 
 # Итоговый вывод
 if len(sections_with_errors_list) == 0:
-    print(f"{Fore.GREEN}{Style.BRIGHT}🎉 ВСЕ РАЗДЕЛЫ РАБОТАЮТ КОРРЕКТНО!")
-    print(f"{Fore.GREEN}✅ Система готова к использованию{Style.RESET_ALL}")
+    print(f"ВСЕ РАЗДЕЛЫ РАБОТАЮТ КОРРЕКТНО!")
+    print(f"Система готова к использованию")
 else:
     # Считаем общее количество уникальных ошибок
     total_unique_errors = 0
@@ -996,9 +996,8 @@ else:
         unique_errors_set = set(result['errors'])  # Уникальные ошибки в разделе
         total_unique_errors += len(unique_errors_set)
 
-    # КРАСНЫЙ - есть ошибки
-    print(f"{Fore.RED}{Style.BRIGHT}🎯 ВСЕГО ОШИБОК: {total_unique_errors}")
-    print(f"{Fore.RED}⚠ Требуется исправление{Style.RESET_ALL}")
+    print(f"ВСЕГО ОШИБОК: {total_unique_errors}")
+    print(f"Требуется исправление")
 
 print(f"{'=' * 80}")
 
@@ -1017,6 +1016,6 @@ print(f"{'=' * 60}")
 try:
     print("\nЗакрытие браузера...")
     driver.quit()
-    print("✓ Браузер успешно закрыт")
+    print("Браузер успешно закрыт")
 except Exception as e:
-    print(f"⚠ Не удалось закрыть браузер: {e}")
+    print(f"Не удалось закрыть браузер: {e}")
