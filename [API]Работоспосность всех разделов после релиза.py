@@ -1,5 +1,4 @@
-"""
-АВТОМАТИЗИРОВАННЫЙ ТЕСТЕР API СИСТЕМЫ "Предбиллинг"
+'''АВТОМАТИЗИРОВАННЫЙ ТЕСТЕР API СИСТЕМЫ "Предбиллинг"
 
 Описание:
 ------------
@@ -18,7 +17,7 @@
    - Администрирование (роли, пользователи, планировщик)
 3. Измерение времени выполнения каждого запроса
 4. Генерация детального отчета с статистикой
-5. Выявление самых медленных разделов (топ-3 по времени)
+5. Выявление самых медленных разделов (3 по времени)
 
 Особенности:
 ------------
@@ -35,14 +34,7 @@ python system_tester.py
 Результат:
 ------------
 Подробный консольный отчет с указанием успешных/проваленных тестов,
-временем выполнения каждого запроса и общей статистикой тестирования.
-"""
-
-
-
-
-
-
+временем выполнения каждого запроса и общей статистикой тестирования.'''
 
 import requests
 import time
@@ -176,9 +168,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ АВТОРИЗАЦИЯ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ АВТОРИЗАЦИЯ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ АВТОРИЗАЦИЯ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА АВТОРИЗАЦИЯ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -194,9 +186,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ РЕЕСТР ВЕДОМОСТЕЙ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ РЕЕСТР ВЕДОМОСТЕЙ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ РЕЕСТР ВЕДОМОСТЕЙ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА РЕЕСТР ВЕДОМОСТЕЙ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -211,9 +203,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ РЕЕСТР ПОКАЗАНИЙ ВОДОМЕРОВ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ РЕЕСТР ПОКАЗАНИЙ ВОДОМЕРОВ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ РЕЕСТР ПОКАЗАНИЙ ВОДОМЕРОВ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА РЕЕСТР ПОКАЗАНИЙ ВОДОМЕРОВ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -228,9 +220,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ ЗАГРУЗКА ФАЙЛА С ДАННЫМИ ПО ВПУ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ ЗАГРУЗКА ФАЙЛА С ДАННЫМИ ПО ВПУ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ ЗАГРУЗКА ФАЙЛА С ДАННЫМИ ПО ВПУ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА ЗАГРУЗКА ФАЙЛА С ДАННЫМИ ПО ВПУ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -245,9 +237,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ УПРАВЛЕНИЕ БЛОКИРОВКАМИ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ УПРАВЛЕНИЕ БЛОКИРОВКАМИ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ УПРАВЛЕНИЕ БЛОКИРОВКАМИ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА УПРАВЛЕНИЕ БЛОКИРОВКАМИ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -262,9 +254,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ ВАРЬИРУЕМЫЕ ИНТЕРВАЛЫ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ ВАРЬИРУЕМЫЕ ИНТЕРВАЛЫ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ ВАРЬИРУЕМЫЕ ИНТЕРВАЛЫ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА ВАРЬИРУЕМЫЕ ИНТЕРВАЛЫ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -280,9 +272,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ ОБЪЕКТЫ ТЕПЛОСЕТИ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ ОБЪЕКТЫ ТЕПЛОСЕТИ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ ОБЪЕКТЫ ТЕПЛОСЕТИ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА ОБЪЕКТЫ ТЕПЛОСЕТИ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -297,9 +289,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ УЗЛЫ УЧЕТА: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ УЗЛЫ УЧЕТА: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ УЗЛЫ УЧЕТА: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА УЗЛЫ УЧЕТА: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -314,9 +306,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ РЕЕСТР АВЭ|АПП: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ РЕЕСТР АВЭ|АПП: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ РЕЕСТР АВЭ|АПП: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА РЕЕСТР АВЭ|АПП: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -331,9 +323,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ ПРИБОРЫ УЧЕТА: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ ПРИБОРЫ УЧЕТА: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ ПРИБОРЫ УЧЕТА: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА ПРИБОРЫ УЧЕТА: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -348,9 +340,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ SIM-КАРТЫ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ SIM-КАРТЫ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ SIM-КАРТЫ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА SIM-КАРТЫ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -365,9 +357,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ УСПД: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ УСПД: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ УСПД: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА УСПД: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -382,9 +374,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ ШКАФ УСПД: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ ШКАФ УСПД: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ ШКАФ УСПД: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА ШКАФ УСПД: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -400,9 +392,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ ПОТРЕБЛЕНИЕ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ ПОТРЕБЛЕНИЕ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ ПОТРЕБЛЕНИЕ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА ПОТРЕБЛЕНИЕ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -417,9 +409,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ ПОТРЕБЛЕНИЕ МВК: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ ПОТРЕБЛЕНИЕ МВК: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ ПОТРЕБЛЕНИЕ МВК: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА ПОТРЕБЛЕНИЕ МВК: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -434,9 +426,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ ОТПУСК ТЕПЛОВОЙ ЭНЕРГИИ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ ОТПУСК ТЕПЛОВОЙ ЭНЕРГИИ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ ОТПУСК ТЕПЛОВОЙ ЭНЕРГИИ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА ОТПУСК ТЕПЛОВОЙ ЭНЕРГИИ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -451,9 +443,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ ОТКЛЮЧЕНИЯ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ ОТКЛЮЧЕНИЯ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ ОТКЛЮЧЕНИЯ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА ОТКЛЮЧЕНИЯ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -468,9 +460,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ ВВОД ДАННЫХ С МЕТЕОСТАНЦИЙ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ ВВОД ДАННЫХ С МЕТЕОСТАНЦИЙ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ ВВОД ДАННЫХ С МЕТЕОСТАНЦИЙ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА ВВОД ДАННЫХ С МЕТЕОСТАНЦИЙ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -485,9 +477,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ РЕЖИМНЫЕ КАРТЫ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ РЕЖИМНЫЕ КАРТЫ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ РЕЖИМНЫЕ КАРТЫ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА РЕЖИМНЫЕ КАРТЫ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -503,9 +495,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ АСУПР: ЖУРНАЛ ПОЛУЧЕНИЯ ВЕДОМОСТЕЙ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ АСУПР: ЖУРНАЛ ПОЛУЧЕНИЯ ВЕДОМОСТЕЙ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ АСУПР: ЖУРНАЛ ПОЛУЧЕНИЯ ВЕДОМОСТЕЙ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА АСУПР: ЖУРНАЛ ПОЛУЧЕНИЯ ВЕДОМОСТЕЙ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -520,9 +512,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ АСУПР: ЖУРНАЛ ПОЛУЧЕНИЯ СПРАВОЧНИКОВ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ АСУПР: ЖУРНАЛ ПОЛУЧЕНИЯ СПРАВОЧНИКОВ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ АСУПР: ЖУРНАЛ ПОЛУЧЕНИЯ СПРАВОЧНИКОВ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА АСУПР: ЖУРНАЛ ПОЛУЧЕНИЯ СПРАВОЧНИКОВ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -537,9 +529,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ АСУПР: ЖУРНАЛ СОПОСТАВЛЕНИЯ СПРАВОЧНИКОВ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ АСУПР: ЖУРНАЛ СОПОСТАВЛЕНИЯ СПРАВОЧНИКОВ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ АСУПР: ЖУРНАЛ СОПОСТАВЛЕНИЯ СПРАВОЧНИКОВ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА АСУПР: ЖУРНАЛ СОПОСТАВЛЕНИЯ СПРАВОЧНИКОВ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -554,9 +546,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ ЕЛК: ЖУРНАЛ ПОЛУЧЕНИЯ ВЕДОМОСТЕЙ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ ЕЛК: ЖУРНАЛ ПОЛУЧЕНИЯ ВЕДОМОСТЕЙ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ ЕЛК: ЖУРНАЛ ПОЛУЧЕНИЯ ВЕДОМОСТЕЙ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА ЕЛК: ЖУРНАЛ ПОЛУЧЕНИЯ ВЕДОМОСТЕЙ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -571,9 +563,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ ЕЛК: ПОЛУЧЕНИЕ ДАННЫХ ИЗ ФАЙЛА ПО ВПУ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ ЕЛК: ПОЛУЧЕНИЕ ДАННЫХ ИЗ ФАЙЛА ПО ВПУ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ ЕЛК: ПОЛУЧЕНИЕ ДАННЫХ ИЗ ФАЙЛА ПО ВПУ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА ЕЛК: ПОЛУЧЕНИЕ ДАННЫХ ИЗ ФАЙЛА ПО ВПУ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -588,9 +580,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ АСОТ: ЖУРНАЛ ПОЛУЧЕНИЯ ДАННЫХ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ АСОТ: ЖУРНАЛ ПОЛУЧЕНИЯ ДАННЫХ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ АСОТ: ЖУРНАЛ ПОЛУЧЕНИЯ ДАННЫХ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА АСОТ: ЖУРНАЛ ПОЛУЧЕНИЯ ДАННЫХ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -605,9 +597,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ ЕСМ: ЖУРНАЛ ВЗАИМОДЕЙСТВИЯ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ ЕСМ: ЖУРНАЛ ВЗАИМОДЕЙСТВИЯ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ ЕСМ: ЖУРНАЛ ВЗАИМОДЕЙСТВИЯ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА ЕСМ: ЖУРНАЛ ВЗАИМОДЕЙСТВИЯ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -622,9 +614,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ МВК: ЖУРНАЛ ВЗАИМОДЕЙСТВИЯ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ МВК: ЖУРНАЛ ВЗАИМОДЕЙСТВИЯ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ МВК: ЖУРНАЛ ВЗАИМОДЕЙСТВИЯ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА МВК: ЖУРНАЛ ВЗАИМОДЕЙСТВИЯ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -639,9 +631,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ АССД ПСД: ЖУРНАЛ ПОЛУЧЕНИЯ ВЕДОМОСТЕЙ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ АССД ПСД: ЖУРНАЛ ПОЛУЧЕНИЯ ВЕДОМОСТЕЙ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ АССД ПСД: ЖУРНАЛ ПОЛУЧЕНИЯ ВЕДОМОСТЕЙ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА АССД ПСД: ЖУРНАЛ ПОЛУЧЕНИЯ ВЕДОМОСТЕЙ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -656,9 +648,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ ЕКС НСИ: ЖУРНАЛ ОБМЕНА ДАННЫМИ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ ЕКС НСИ: ЖУРНАЛ ОБМЕНА ДАННЫМИ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ ЕКС НСИ: ЖУРНАЛ ОБМЕНА ДАННЫМИ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА ЕКС НСИ: ЖУРНАЛ ОБМЕНА ДАННЫМИ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -691,9 +683,9 @@ class SystemTester:
         status = f"{status1}/{status2}"
 
         if success:
-            print(f"✓ ИС СБЫТ: ОБЩАЯ СТАТИСТИКА: OK (200/200) [{total_time:.2f} сек]")
+            print(f"УСПЕХ ИС СБЫТ: ОБЩАЯ СТАТИСТИКА: OK (200/200) [{total_time:.2f} сек]")
         else:
-            print(f"✗ ИС СБЫТ: ОБЩАЯ СТАТИСТИКА: ОШИБКА ({status}) [{total_time:.2f} сек]")
+            print(f"ОШИБКА ИС СБЫТ: ОБЩАЯ СТАТИСТИКА: ОШИБКА ({status}) [{total_time:.2f} сек]")
 
         return success, status, total_time
 
@@ -708,9 +700,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ ИС СБЫТ: ЖУРНАЛ ОШИБОК: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ ИС СБЫТ: ЖУРНАЛ ОШИБОК: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ ИС СБЫТ: ЖУРНАЛ ОШИБОК: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА ИС СБЫТ: ЖУРНАЛ ОШИБОК: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -725,9 +717,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ ЗАЯВКИ В УКУИКЭ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ ЗАЯВКИ В УКУИКЭ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ ЗАЯВКИ В УКУИКЭ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА ЗАЯВКИ В УКУИКЭ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -742,9 +734,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ АНАЛИТИКА И ОТЧЕТНОСТЬ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ АНАЛИТИКА И ОТЧЕТНОСТЬ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ АНАЛИТИКА И ОТЧЕТНОСТЬ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА АНАЛИТИКА И ОТЧЕТНОСТЬ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -759,9 +751,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ НОРМАТИВНО-СПРАВОЧНАЯ ИНФОРМАЦИЯ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ НОРМАТИВНО-СПРАВОЧНАЯ ИНФОРМАЦИЯ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ НОРМАТИВНО-СПРАВОЧНАЯ ИНФОРМАЦИЯ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА НОРМАТИВНО-СПРАВОЧНАЯ ИНФОРМАЦИЯ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -776,9 +768,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ АДМИНИСТРИРОВАНИЕ: РОЛИ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ АДМИНИСТРИРОВАНИЕ: РОЛИ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ АДМИНИСТРИРОВАНИЕ: РОЛИ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА АДМИНИСТРИРОВАНИЕ: РОЛИ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -793,9 +785,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ АДМИНИСТРИРОВАНИЕ: ПОЛЬЗОВАТЕЛИ: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ АДМИНИСТРИРОВАНИЕ: ПОЛЬЗОВАТЕЛИ: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ АДМИНИСТРИРОВАНИЕ: ПОЛЬЗОВАТЕЛИ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА АДМИНИСТРИРОВАНИЕ: ПОЛЬЗОВАТЕЛИ: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -810,9 +802,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ АДМИНИСТРИРОВАНИЕ: ЭЛЕМЕНТЫ ИНТЕРФЕЙСА: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ АДМИНИСТРИРОВАНИЕ: ЭЛЕМЕНТЫ ИНТЕРФЕЙСА: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ АДМИНИСТРИРОВАНИЕ: ЭЛЕМЕНТЫ ИНТЕРФЕЙСА: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА АДМИНИСТРИРОВАНИЕ: ЭЛЕМЕНТЫ ИНТЕРФЕЙСА: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -827,9 +819,9 @@ class SystemTester:
         )
 
         if success:
-            print(f"✓ АДМИНИСТРИРОВАНИЕ: ПЛАНИРОВЩИК: OK (200) [{response_time:.2f} сек]")
+            print(f"УСПЕХ АДМИНИСТРИРОВАНИЕ: ПЛАНИРОВЩИК: OK (200) [{response_time:.2f} сек]")
         else:
-            print(f"✗ АДМИНИСТРИРОВАНИЕ: ПЛАНИРОВЩИК: ОШИБКА ({status}) [{response_time:.2f} сек]")
+            print(f"ОШИБКА АДМИНИСТРИРОВАНИЕ: ПЛАНИРОВЩИК: ОШИБКА ({status}) [{response_time:.2f} сек]")
 
         return success, status, response_time
 
@@ -981,7 +973,7 @@ class SystemTester:
         minutes = int(total_seconds // 60)
         seconds = total_seconds % 60
 
-        print(f"\n📊 ОБЩАЯ СТАТИСТИКА:")
+        print(f"\nОБЩАЯ СТАТИСТИКА:")
         print(f"   Всего тестов: {total}")
         print(f"   Успешных: {successful}")
         print(f"   Проваленных: {len(failed_tests)}")
@@ -1000,18 +992,18 @@ class SystemTester:
             # Минуты и секунды
             print(f"   Общее время: {minutes} минут {seconds:.1f} секунд")
 
-        # Топ-3 самых долгих разделов
+        # 3 самых долгих разделов
         if test_times:
             test_times.sort(key=lambda x: x[1], reverse=True)
             top_slow = test_times[:3]
 
-            print(f"3 САМЫХ ДОЛГИХ РАЗДЕЛОВ:")
+            print(f"3 САМЫХ ДОЛГИХ РАЗДЕЛА:")
             for i, (test_name, response_time) in enumerate(top_slow, 1):
                 if response_time > 0:
                     print(f"   {i}. {test_name}: {response_time:.2f} сек")
 
         if failed_tests:
-            print(f"\n🔴 ПРОВАЛЕННЫЕ ТЕСТЫ:")
+            print(f"\nПРОВАЛЕННЫЕ ТЕСТЫ:")
             for test_name, status, endpoint in failed_tests:
                 if status == 0:
                     print(f"   • {test_name}")
@@ -1026,7 +1018,7 @@ class SystemTester:
                     print(f"     Endpoint: {endpoint}")
                     print(f"     Код ошибки: {status}")
         else:
-            print(f"\n✅ ВСЕ ТЕСТЫ УСПЕШНЫ!")
+            print(f"\nВСЕ ТЕСТЫ УСПЕШНЫ!")
 
         print("=" * 60)
 
