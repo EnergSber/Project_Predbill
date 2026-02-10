@@ -38,6 +38,7 @@ chrome_options.add_argument('--disable-gpu')
 
 try:
     from webdriver_manager.chrome import ChromeDriverManager
+
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=chrome_options)
     print("Chrome запущен успешно")
@@ -402,9 +403,97 @@ except Exception as e:
     print(f"Ошибка при поиске кнопки 'Перейти в журнал': {e}")
 
 print("\n" + "=" * 60)
-print("8. ЗАВЕРШЕНИЕ ТЕСТА")
+print("8. ПРОВЕРКА СТАТУСА ЗАГРУЗКИ В ЖУРНАЛЕ")
 print("=" * 60)
 
-input()
+print("Ожидание загрузки данных в журнале...")
+time.sleep(3)
+
+# Флаг для отслеживания успешности теста
+test_passed = True
+test_failures = []
+
+# Список прочерков для проверки
+empty_indicators = ["", "-", "—", "–", "−", "---", "--", "––", " ", "  ", "   "]
+
+try:
+    # Проверяем наличие данных в таблице
+    print("Проверяю статус загрузки в журнале...")
+
+    # Ждем загрузки таблицы
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, '.BaseTable__table'))
+    )
+
+    # Проверка статуса загрузки
+    print("\nПроверка статуса загрузки:")
+    try:
+        status_selectors = [
+            '#root > section > section > main > div > div > div > div > div.BaseTable__table.BaseTable__table-main > div.BaseTable__body > div > div > div.BaseTable__row-cell.BaseTable__row-cell--align-center > div',
+            '.BaseTable__row-cell--align-center div',
+            '[data-testid="status-column"]',
+            'div[class*="status"]'
+        ]
+
+        status_element = None
+        status_text = ""
+        for selector in status_selectors:
+            try:
+                elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                if elements and elements[0].text.strip():
+                    status_element = elements[0]
+                    status_text = elements[0].text.strip()
+                    break
+            except:
+                continue
+
+        if status_element and status_text:
+            if status_text not in empty_indicators:
+                print(f"   Статус загрузки заполнен: '{status_text}'")
+            else:
+                error_msg = f"   ТЕСТ ПРОВАЛЕН: Статус пустой или содержит прочерк: '{status_text}'"
+                print(error_msg)
+                test_passed = False
+                test_failures.append("Статус загрузки пустой или содержит прочерк")
+        else:
+            error_msg = "   ТЕСТ ПРОВАЛЕН: Элемент статуса не найден или пустой"
+            print(error_msg)
+            test_passed = False
+            test_failures.append("Элемент статуса не найден")
+
+    except Exception as e:
+        error_msg = f"   ТЕСТ ПРОВАЛЕН: Ошибка при проверке статуса: {e}"
+        print(error_msg)
+        test_passed = False
+        test_failures.append(f"Ошибка проверки статуса: {e}")
+
+except Exception as e:
+    print(f"Ошибка при проверке данных в журнале: {e}")
+    test_passed = False
+    test_failures.append(f"Общая ошибка проверки журнала: {e}")
+
+print("\n" + "=" * 60)
+print("9. ИТОГИ ТЕСТИРОВАНИЯ")
+print("=" * 60)
+
+if test_passed:
+    print("ТЕСТ ПРОЙДЕН УСПЕШНО!")
+    print("Статус загрузки содержит данные (не пустой и без прочерков)")
+else:
+    print("ТЕСТ ПРОВАЛЕН!")
+    print("Причины:")
+    for i, failure in enumerate(test_failures, 1):
+        print(f"  {i}. {failure}")
+
+    print("\nВНИМАНИЕ: Ведомость не загружена или загружена некорректно!")
+
+
+print("\n" + "=" * 60)
+print("10. ЗАВЕРШЕНИЕ ТЕСТА")
+print("=" * 60)
+
+
+#input()
 driver.quit()
 print("Chrome закрыт")
+
