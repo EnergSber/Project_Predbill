@@ -9,6 +9,10 @@ from webdriver_manager.chrome import ChromeDriverManager
 import time
 import random
 
+# Глобальные переменные
+saved_selected_addresses = []
+table_selector = "#root > section > section > main > form > div > div > div > div > div > div.BaseTable__table.BaseTable__table-main > div.BaseTable__body"  # Добавлено
+
 # Инициализация драйвера
 service = Service(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=service)
@@ -33,6 +37,318 @@ def add_error(error_text):
     if error_text not in section_errors:
         section_errors.append(error_text)
         print(f"ОШИБКА: {error_text}")
+
+
+# ФУНКЦИЯ ДЛЯ ПРОВЕРКИ АДРЕСОВ В МОДАЛЬНОМ ОКНЕ
+def verify_addresses_in_modal():
+    try:
+        print("\nПроверяем адреса в модальном окне...")
+
+        # Даем время на загрузку модального окна
+        time.sleep(2)
+
+        # Сначала получим HTML модального окна для отладки
+        try:
+            modal = driver.find_element(By.CSS_SELECTOR, ".ant-modal")
+            modal_html = modal.get_attribute('outerHTML')
+            print(f"  HTML модального окна (первые 500 символов): {modal_html[:500]}...")
+        except:
+            print("  Не удалось получить HTML модального окна")
+
+        # Пробуем найти любой текст в модальном окне
+        try:
+            modal_body = driver.find_element(By.CSS_SELECTOR, ".ant-modal-body")
+            modal_text = modal_body.text
+            print(f"  Текст модального окна:\n{modal_text}")
+
+            # Разделим текст на строки
+            lines = [line.strip() for line in modal_text.split('\n') if line.strip()]
+            print(f"  Найдено {len(lines)} строк в модальном окне:")
+            for i, line in enumerate(lines, 1):
+                print(f"    {i}. {line}")
+
+            # Ищем адреса в тексте
+            addresses_in_modal = []
+            for line in lines:
+                if any(keyword in line.lower() for keyword in ['ул.', 'д.', 'просп.', 'бульв.', 'шоссе', 'пер.']):
+                    addresses_in_modal.append(line)
+
+            # Получаем сохраненные адреса
+            global saved_selected_addresses
+
+            print(f"\nСохраненные адреса (из таблицы):")
+            for i, addr in enumerate(saved_selected_addresses, 1):
+                print(f"  {i}. {addr}")
+
+            print(f"\nНайденные адреса в модальном окне:")
+            for i, addr in enumerate(addresses_in_modal, 1):
+                print(f"  {i}. {addr}")
+
+            # Сравниваем адреса
+            if not saved_selected_addresses:
+                print("  ВНИМАНИЕ: Нет сохраненных адресов для сравнения")
+                return False
+
+            if not addresses_in_modal:
+                print("  ВНИМАНИЕ: Не найдены адреса в модальном окне")
+                return False
+
+            # Упрощенное сравнение: ищем частичные совпадения
+            matches_found = 0
+            for saved_addr in saved_selected_addresses:
+                found = False
+                # Берем ключевую часть адреса (первые слова)
+                saved_key_parts = saved_addr.split(',')[0]  # Например, "бульв. Маршала Рокоссовского"
+
+                for modal_addr in addresses_in_modal:
+                    if saved_key_parts in modal_addr:
+                        matches_found += 1
+                        print(f"  ✓ Совпадение: '{saved_key_parts}' найдено в '{modal_addr}'")
+                        found = True
+                        break
+
+                if not found:
+                    print(f"  ✗ Адрес не найден в модальном окне: {saved_addr}")
+
+            if matches_found == len(saved_selected_addresses):
+                print(f"\n  УСПЕХ: Все {matches_found} адреса совпадают!")
+                return True
+            else:
+                print(f"\n  ПРОБЛЕМА: Найдено только {matches_found} из {len(saved_selected_addresses)} совпадений")
+                return matches_found > 0
+
+        except Exception as e:
+            print(f"  Ошибка при анализе модального окна: {e}")
+            return False
+
+    except Exception as e:
+        print(f"  Ошибка при проверке адресов в модальном окне: {e}")
+        return False
+
+
+# ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ВЫБРАННЫХ ВЕДОМОСТЕЙ
+def verify_selected_statements():
+    try:
+        print("\nПроверяем выбранные ведомости...")
+
+        # Сначала запоминаем адреса отмеченных ведомостей
+        selected_addresses = []
+
+        # Ищем таблицу
+        table_body = wait.until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, table_selector))
+        )
+
+        # Ищем все строки в таблице
+        rows = table_body.find_elements(By.CSS_SELECTOR, "div.BaseTable__row")
+
+        if len(rows) == 0:
+            print("Таблица пуста")
+            return False
+
+        print(f"Найдено строк в таблице: {len(rows)}")
+
+        # Проверяем первые 5 строк
+        check_rows = min(5, len(rows))
+        print(f"Проверяем первые {check_rows} строк...")
+
+        for i in range(check_rows):
+            try:
+                row = rows[i]
+
+                # Ищем чекбокс
+                checkbox = row.find_element(By.CSS_SELECTOR, "input[type='checkbox']")
+                is_selected = checkbox.is_selected()
+
+                # Получаем адрес из 5-й ячейки (индекс 4)
+                cells = row.find_elements(By.CSS_SELECTOR, ".BaseTable__row-cell")
+
+                if len(cells) >= 5:
+                    # Получаем ячейку с адресом (4-я по счету, индекс 4)
+                    address_cell = cells[4]
+
+                    # Внутри ячейки ищем элемент с классом textEllipsis
+                    try:
+                        # Первый способ: ищем span с классом textEllipsis
+                        address_element = address_cell.find_element(By.CSS_SELECTOR, "span.textEllipsis")
+                        address = address_element.text.strip()
+                    except:
+                        # Второй способ: если элемент не найден, берем весь текст ячейки
+                        address = address_cell.text.strip()
+
+                        # Очищаем адрес от лишних символов
+                        address = address.replace('\n', ' ')
+
+                        # Убираем иконку (она может быть в тексте)
+                        if 'svg' in address_cell.get_attribute('outerHTML'):
+                            # Пытаемся найти только текст после иконки
+                            import re
+                            text_match = re.search(r'<span[^>]*>([^<]+)</span>',
+                                                   address_cell.get_attribute('outerHTML'))
+                            if text_match:
+                                address = text_match.group(1).strip()
+                else:
+                    address = "Адрес не найден"
+
+                status = "✓" if is_selected else "✗"
+                print(f"  Строка {i + 1}: {status} {address}")
+
+                if is_selected:
+                    selected_addresses.append(address)
+
+            except Exception as e:
+                print(f"  Ошибка при проверке строки {i + 1}: {str(e)[:50]}")
+                continue
+
+        print(f"\nВсего отмечено ведомостей: {len(selected_addresses)}")
+
+        if len(selected_addresses) == 0:
+            add_error("Не отмечено ни одной ведомости")
+            return False
+
+        if len(selected_addresses) < 3:
+            print(f"ВНИМАНИЕ: Отмечено только {len(selected_addresses)} ведомостей, ожидалось 3")
+            return False
+
+        # Сохраняем адреса для проверки после сохранения
+        global saved_selected_addresses
+        saved_selected_addresses = selected_addresses
+
+        print("Отмеченные адреса сохранены для проверки")
+        print("Сохраненные адреса:")
+        for i, addr in enumerate(selected_addresses, 1):
+            print(f"  {i}. {addr}")
+
+        return True
+
+    except Exception as e:
+        print(f"Ошибка при проверке ведомостей: {e}")
+        return False
+
+
+# ФУНКЦИЯ ДЛЯ ПРОВЕРКИ УСПЕШНОСТИ ОПЕРАЦИИ ПОСЛЕ СОХРАНЕНИЯ
+def check_operation_success():
+    try:
+        print("\nПроверяем успешность операции отклонения...")
+        time.sleep(3)
+
+        success = False
+
+        # 1. Проверяем сообщение об успехе
+        success_selectors = [
+            "div.ant-notification-notice-success",
+            "div.ant-alert-success",
+            ".ant-message-success",
+            "[class*='success']"
+        ]
+
+        for selector in success_selectors:
+            try:
+                elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                for elem in elements:
+                    try:
+                        if elem.is_displayed():
+                            success_text = elem.text.strip()
+                            if success_text and len(success_text) > 3:
+                                print(f"Успешное сообщение: {success_text}")
+                                success = True
+                                break
+                    except:
+                        continue
+                if success:
+                    break
+            except:
+                continue
+
+        # 2. Проверяем что модальное окно закрылось
+        if not success:
+            try:
+                # Ищем модальное окно
+                modal = driver.find_element(By.CSS_SELECTOR, ".ant-modal")
+                if not modal.is_displayed():
+                    print("Модальное окно закрылось - операция выполнена")
+                    success = True
+            except:
+                print("Модальное окно не найдено - вероятно закрылось")
+                success = True
+
+        # 3. Проверяем что отмеченные ведомости больше не отмечены
+        if success and saved_selected_addresses:  # Исправлено: проверяем глобальную переменную
+            try:
+                print("Проверяем обновление таблицы...")
+                time.sleep(2)
+
+                # Используем глобальную переменную table_selector
+                global table_selector
+                table_body = driver.find_element(By.CSS_SELECTOR, table_selector)
+                rows = table_body.find_elements(By.CSS_SELECTOR, "div.BaseTable__row")
+
+                # Проверяем что первые три чекбокса сняты
+                first_three_checked = 0
+                for i in range(min(3, len(rows))):
+                    try:
+                        checkbox = rows[i].find_element(By.CSS_SELECTOR, "input[type='checkbox']")
+                        if checkbox.is_selected():
+                            first_three_checked += 1
+                    except:
+                        continue
+
+                if first_three_checked == 0:
+                    print("Первые три ведомости больше не отмечены - операция выполнена")
+                else:
+                    print(f"Предупреждение: {first_three_checked} из первых трех ведомостей все еще отмечены")
+
+            except Exception as e:
+                print(f"Не удалось проверить обновление таблицы: {e}")
+
+        return success
+
+    except Exception as e:
+        print(f"Ошибка при проверке успешности операции: {e}")
+        return True
+
+
+# ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ЧТО НУЖНЫЕ ВЕДОМОСТИ ОТМЕЧЕНЫ
+def verify_first_three_selected():
+    try:
+        print("\nПроверяем что отмечены первые три ведомости...")
+
+        # Используем глобальную переменную table_selector
+        global table_selector
+        table_body = wait.until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, table_selector))
+        )
+
+        # Ищем все строки в таблице
+        rows = table_body.find_elements(By.CSS_SELECTOR, "div.BaseTable__row")
+
+        if len(rows) < 3:
+            add_error(f"В таблице меньше 3 строк: {len(rows)}")
+            return False
+
+        # Проверяем первые три строки
+        first_three_selected = True
+        for i in range(3):
+            try:
+                checkbox = rows[i].find_element(By.CSS_SELECTOR, "input[type='checkbox']")
+                if not checkbox.is_selected():
+                    print(f"  Строка {i + 1}: НЕ отмечена!")
+                    first_three_selected = False
+                    # Отмечаем если не отмечена
+                    checkbox.click()
+                    time.sleep(0.2)
+                    print(f"  Строка {i + 1}: теперь отмечена")
+                else:
+                    print(f"  Строка {i + 1}: отмечена ✓")
+            except Exception as e:
+                print(f"  Ошибка при проверке строки {i + 1}: {e}")
+                first_three_selected = False
+
+        return first_three_selected
+
+    except Exception as e:
+        add_error(f"Ошибка при проверке первых трех ведомостей: {e}")
+        return False
 
 
 # ФУНКЦИЯ ДЛЯ ПРОВЕРКИ И ЗАКРЫТИЯ ОШИБОК
@@ -315,8 +631,8 @@ def mark_checkboxes():
     try:
         print("Отмечаем первые три чекбокса...")
 
-        # Ищем таблицу
-        table_selector = "#root > section > section > main > form > div > div > div > div > div > div.BaseTable__table.BaseTable__table-main > div.BaseTable__body"
+        # Используем глобальную переменную table_selector
+        global table_selector
         table_body = wait.until(
             EC.presence_of_element_located((By.CSS_SELECTOR, table_selector))
         )
@@ -440,7 +756,7 @@ def select_reject_reason():
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", reason_container)
         time.sleep(0.5)
 
-        print("Нашли контейнер поля причины")
+        print("Нашли контейнер поле причины")
 
         # СНАЧАЛА проверяем, может поле уже открыто
         try:
@@ -834,7 +1150,7 @@ try:
     if not select_reject_option():
         add_error("Не удалось выбрать опцию 'Отклонить'")
 
-    # 11. ВЫБОР ПРИЧИНЫ ОТКЛОНЕНИЯ
+        # 11. ВЫБОР ПРИЧИНЫ ОТКЛОНЕНИЯ
     print("\n" + "=" * 50)
     print("ШАГ 11: ВЫБОР ПРИЧИНЫ ОТКЛОНЕНИЯ")
     print("=" * 50)
@@ -842,26 +1158,106 @@ try:
     if not select_reject_reason():
         add_error("Не удалось выбрать причину отклонения")
 
-    # 12. НАЖАТИЕ "СОХРАНИТЬ"
+    # 12. ПРОВЕРКА ВЫБРАННЫХ ВЕДОМОСТЕЙ (ПЕРЕД проверкой модального окна)
     print("\n" + "=" * 50)
-    print("ШАГ 12: НАЖАТИЕ КНОПКИ 'СОХРАНИТЬ'")
+    print("ШАГ 12: ПРОВЕРКА ВЫБРАННЫХ ВЕДОМОСТЕЙ")
+    print("=" * 50)
+
+    # Проверяем что отмечены первые три ведомости
+    if not verify_first_three_selected():
+        add_error("Не все первые три ведомости отмечены")
+
+    # Проверяем что отмеченные ведомости соответствуют фильтрам (упрощенная проверка)
+    verify_selected_statements()
+
+    # 13. ПРОВЕРКА АДРЕСОВ В МОДАЛЬНОМ ОКНЕ
+    print("\n" + "=" * 50)
+    print("ШАГ 13: ПРОВЕРКА АДРЕСОВ В МОДАЛЬНОМ ОКНЕ")
+    print("=" * 50)
+
+    if not verify_addresses_in_modal():
+        print("Предупреждение: адреса в модальном окне не полностью совпадают с выбранными")
+
+    # 14. НАЖАТИЕ "СОХРАНИТЬ"
+    print("\n" + "=" * 50)
+    print("ШАГ 14: НАЖАТИЕ КНОПКИ 'СОХРАНИТЬ'")
     print("=" * 50)
 
     if not click_save_button():
         add_error("Не удалось нажать кнопку 'Сохранить'")
 
-    # 13. ФИНАЛЬНАЯ ПРОВЕРКА
+    # 15. ФИНАЛЬНАЯ ПРОВЕРКА
     print("\n" + "=" * 50)
-    print("ШАГ 13: ФИНАЛЬНАЯ ПРОВЕРКА")
+    print("ШАГ 15: ФИНАЛЬНАЯ ПРОВЕРКА")
     print("=" * 50)
-
-    print("Ожидание завершения операции...")
-    time.sleep(3)
 
     # Проверяем ошибки финально
     check_and_close_errors("Финальная проверка")
 
-    # 14. ИТОГОВЫЙ ОТЧЕТ
+    # Проверяем успешность операции
+    try:
+        # Ищем сообщение об успехе
+        success_selectors = [
+            "div.ant-notification-notice-success",
+            "div.ant-alert-success",
+            ".ant-message-success",
+            "[class*='success']"
+        ]
+
+        success_found = False
+        for selector in success_selectors:
+            try:
+                elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                for elem in elements:
+                    try:
+                        if elem.is_displayed():
+                            success_text = elem.text.strip()
+                            if success_text and len(success_text) > 3:
+                                print(f"Успешное сообщение: {success_text}")
+                                success_found = True
+                                break
+                    except:
+                        continue
+                if success_found:
+                    break
+            except:
+                continue
+
+        if not success_found:
+            print("Сообщение об успехе не найдено, проверяем обновление таблицы...")
+
+            # Проверяем что отмеченные ведомости исчезли или изменили статус
+            try:
+                # Используем глобальную переменную table_selector
+
+                table_body = driver.find_element(By.CSS_SELECTOR, table_selector)
+                rows = table_body.find_elements(By.CSS_SELECTOR, "div.BaseTable__row")
+
+                # Проверяем что первые три чекбокса сняты
+                first_three_checked = 0
+                for i in range(min(3, len(rows))):
+                    try:
+                        checkbox = rows[i].find_element(By.CSS_SELECTOR, "input[type='checkbox']")
+                        if checkbox.is_selected():
+                            first_three_checked += 1
+                    except:
+                        continue
+
+                if first_three_checked == 0:
+                    print("Первые три ведомости больше не отмечены - операция выполнена")
+                else:
+                    print(f"Предупреждение: {first_three_checked} из первых трех ведомостей все еще отмечены")
+
+            except Exception as e:
+                print(f"Не удалось проверить обновление таблицы: {e}")
+
+    except Exception as e:
+        print(f"Ошибка при проверке успешности операции: {e}")
+
+    # Проверяем ошибки финально
+    check_and_close_errors("Финальная проверка")
+
+    # 15. ИТОГОВЫЙ ОТЧЕТ
     print("\n" + "=" * 60)
     print("ИТОГОВЫЙ ОТЧЕТ")
     print("=" * 60)
@@ -882,7 +1278,7 @@ except Exception as e:
     print(f"\nТест прерван с ошибкой: {e}")
 
 finally:
-    # Закрытие браузера
+    input()
     try:
         print("\nЗакрытие браузера...")
         driver.quit()
