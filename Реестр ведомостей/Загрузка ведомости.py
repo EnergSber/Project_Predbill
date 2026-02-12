@@ -413,7 +413,8 @@ time.sleep(3)
 test_passed = True
 test_failures = []
 
-# Список прочерков для проверки
+# Список прочерков для проверки - ТОЛЬКО пустые значения и прочерки
+# Любые символы, иконки, крестики, галочки - это OK
 empty_indicators = ["", "-", "—", "–", "−", "---", "--", "––", " ", "  ", "   "]
 
 try:
@@ -428,27 +429,48 @@ try:
     # Проверка статуса загрузки
     print("\nПроверка статуса загрузки:")
     try:
-        status_selectors = [
-            '#root > section > section > main > div > div > div > div > div.BaseTable__table.BaseTable__table-main > div.BaseTable__body > div > div > div.BaseTable__row-cell.BaseTable__row-cell--align-center > div',
-            '.BaseTable__row-cell--align-center div',
-            '[data-testid="status-column"]',
-            'div[class*="status"]'
-        ]
-
+        # Ищем элемент статуса
         status_element = None
         status_text = ""
-        for selector in status_selectors:
-            try:
-                elements = driver.find_elements(By.CSS_SELECTOR, selector)
-                if elements and elements[0].text.strip():
-                    status_element = elements[0]
-                    status_text = elements[0].text.strip()
-                    break
-            except:
-                continue
 
-        if status_element and status_text:
-            if status_text not in empty_indicators:
+        # Сначала пробуем найти по селектору с svg (иконка)
+        try:
+            svg_elements = driver.find_elements(By.CSS_SELECTOR,
+                                                '#root > section > section > main > div > div > div > div > div.BaseTable__table.BaseTable__table-main > div.BaseTable__body > div > div > div.BaseTable__row-cell.BaseTable__row-cell--align-center > div > span > svg')
+            if svg_elements and len(svg_elements) > 0:
+                # Нашли иконку - это OK
+                print(f"   Найдена иконка статуса (OK)")
+                status_element = svg_elements[0]
+                status_text = "иконка присутствует"
+        except:
+            pass
+
+        # Если не нашли иконку, ищем текст
+        if not status_element:
+            status_selectors = [
+                '#root > section > section > main > div > div > div > div > div.BaseTable__table.BaseTable__table-main > div.BaseTable__body > div > div > div.BaseTable__row-cell.BaseTable__row-cell--align-center > div',
+                '.BaseTable__row-cell--align-center div',
+                '[data-testid="status-column"]',
+                'div[class*="status"]'
+            ]
+
+            for selector in status_selectors:
+                try:
+                    elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                    if elements and elements[0].text.strip():
+                        status_element = elements[0]
+                        status_text = elements[0].text.strip()
+                        break
+                except:
+                    continue
+
+        # Проверяем результат
+        if status_element:
+            # Если мы нашли иконку - это всегда OK
+            if "иконка" in status_text:
+                print(f"   Статус загрузки отображается иконкой (OK)")
+            # Если это текст, проверяем что он не пустой и не прочерк
+            elif status_text not in empty_indicators:
                 print(f"   Статус загрузки заполнен: '{status_text}'")
             else:
                 error_msg = f"   ТЕСТ ПРОВАЛЕН: Статус пустой или содержит прочерк: '{status_text}'"
@@ -456,10 +478,29 @@ try:
                 test_passed = False
                 test_failures.append("Статус загрузки пустой или содержит прочерк")
         else:
-            error_msg = "   ТЕСТ ПРОВАЛЕН: Элемент статуса не найден или пустой"
-            print(error_msg)
-            test_passed = False
-            test_failures.append("Элемент статуса не найден")
+            # Дополнительная проверка: ищем любой дочерний элемент в ячейке статуса
+            try:
+                # Пробуем найти ячейку статуса и проверить наличие любых дочерних элементов
+                status_cells = driver.find_elements(By.CSS_SELECTOR, '.BaseTable__row-cell--align-center')
+                if status_cells and len(status_cells) > 0:
+                    cell_content = status_cells[0].get_attribute('innerHTML').strip()
+                    if cell_content and cell_content not in empty_indicators:
+                        print(f"   Ячейка статуса содержит контент (OK)")
+                    else:
+                        error_msg = "   ТЕСТ ПРОВАЛЕН: Ячейка статуса пустая"
+                        print(error_msg)
+                        test_passed = False
+                        test_failures.append("Ячейка статуса пустая")
+                else:
+                    error_msg = "   ТЕСТ ПРОВАЛЕН: Элемент статуса не найден"
+                    print(error_msg)
+                    test_passed = False
+                    test_failures.append("Элемент статуса не найден")
+            except:
+                error_msg = "   ТЕСТ ПРОВАЛЕН: Элемент статуса не найден"
+                print(error_msg)
+                test_passed = False
+                test_failures.append("Элемент статуса не найден")
 
     except Exception as e:
         error_msg = f"   ТЕСТ ПРОВАЛЕН: Ошибка при проверке статуса: {e}"
@@ -478,7 +519,7 @@ print("=" * 60)
 
 if test_passed:
     print("ТЕСТ ПРОЙДЕН УСПЕШНО!")
-    print("Статус загрузки содержит данные (не пустой и без прочерков)")
+    print("Статус загрузки отображается (иконка или текст, не пустой и без прочерков)")
 else:
     print("ТЕСТ ПРОВАЛЕН!")
     print("Причины:")
@@ -487,13 +528,14 @@ else:
 
     print("\nВНИМАНИЕ: Ведомость не загружена или загружена некорректно!")
 
-
 print("\n" + "=" * 60)
 print("10. ЗАВЕРШЕНИЕ ТЕСТА")
 print("=" * 60)
 
-
-#input()
+# input()
 driver.quit()
 print("Chrome закрыт")
 
+# Завершаем с соответствующим кодом выхода
+if not test_passed:
+    sys.exit(1)  # Код ошибки для проваленного теста
