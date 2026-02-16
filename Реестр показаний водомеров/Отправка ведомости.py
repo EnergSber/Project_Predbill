@@ -28,7 +28,7 @@ PASSWORD = 'predbill'
 section_errors = []
 
 print("=" * 60)
-print("ТЕСТ РАЗДЕЛА: Реестр ведомостей - Отправка выбранных объемов")
+print("ТЕСТ РАЗДЕЛА: Реестр водомеров - Отправка выбранных объемов")
 print("=" * 60)
 
 
@@ -197,65 +197,7 @@ def press_tab():
         return False
 
 
-def select_categories_for_send():
-    try:
-        print("Устанавливаем категории для отправки...")
 
-        category_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(2) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div > div.ant-select-selection-overflow"
-
-        field_element = wait.until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, category_selector))
-        )
-
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", field_element)
-        time.sleep(0.5)
-        field_element.click()
-        time.sleep(1)
-
-        dropdown = wait.until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".ant-select-dropdown:not(.ant-select-dropdown-hidden)"))
-        )
-
-        categories_to_select = []
-        all_options = dropdown.find_elements(By.CSS_SELECTOR, ".ant-select-item-option")
-
-        target_categories = ["Tн.р. = 0", "Тн.р. = 0", "Tн.р. < 15 суток", "Тн.р. < 15 суток"]
-
-        for option in all_options:
-            try:
-                text = option.text.strip()
-                for target in target_categories:
-                    if text == target:
-                        categories_to_select.append((option, text))
-                        print(f"Найдена категория: '{text}'")
-                        break
-            except:
-                continue
-
-        selected_count = 0
-        for option, text in categories_to_select:
-            try:
-                option.click()
-                print(f"Выбрана категория: '{text}'")
-                selected_count += 1
-                time.sleep(0.5)
-            except:
-                continue
-
-        field_element.click()
-
-        check_and_close_errors("После выбора категорий")
-
-        if selected_count >= 2:
-            print(f"Выбрано категорий: {selected_count}")
-            return True
-        else:
-            add_error(f"Выбрано недостаточно категорий: {selected_count}")
-            return False
-
-    except Exception as e:
-        add_error(f"Ошибка при выборе категорий: {e}")
-        return False
 
 
 def select_statuses_for_send():
@@ -498,7 +440,7 @@ def click_send_button_in_modal():
         time.sleep(2)
 
         send_button = driver.find_element(By.CSS_SELECTOR,
-                                          "#addRolesModalForm > div.rt-form-footer > button.ant-btn.ant-btn-primary.ml-s")
+                                          "html > div > div > div > ul > li:nth-child(3) > span > button")
 
         if send_button.is_displayed() and send_button.is_enabled():
             driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", send_button)
@@ -595,7 +537,7 @@ def select_send_option():
 
         try:
             send_button = driver.find_element(By.CSS_SELECTOR,
-                                              "html > div > div > div > ul > li:nth-child(5) > span > button")
+                                              "html > div > div > div > ul > li:nth-child(4) > span > button")
             if send_button.is_displayed() and send_button.is_enabled():
                 driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", send_button)
                 time.sleep(0.5)
@@ -733,10 +675,10 @@ print("ШАГ 2: ПЕРЕХОД В РАЗДЕЛ")
 print("=" * 50)
 
 try:
-    section_url = 'http://10.5.121.74/commercialControl/billingStatements'
+    section_url = 'http://10.5.121.74/commercialControl/watermeterStatements'
     driver.get(section_url)
     wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
-    print("Переход в раздел 'Реестр ведомостей'")
+    print("Переход в раздел 'Реестр водомеров'")
     time.sleep(2)
 
     check_and_close_errors("После перехода в раздел")
@@ -767,8 +709,7 @@ print("\n" + "=" * 50)
 print("ШАГ 5: УСТАНОВКА КАТЕГОРИЙ ДЛЯ ОТПРАВКИ")
 print("=" * 50)
 
-if not select_categories_for_send():
-    add_error("Не удалось установить категории для отправки")
+
 
 press_tab()
 
