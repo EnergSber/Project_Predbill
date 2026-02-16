@@ -1278,7 +1278,7 @@ except Exception as e:
     print(f"\nТест прерван с ошибкой: {e}")
 
 finally:
-    input()
+    #input()
     try:
         print("\nЗакрытие браузера...")
         driver.quit()
