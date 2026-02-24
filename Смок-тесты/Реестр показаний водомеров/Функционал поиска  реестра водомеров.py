@@ -30,6 +30,7 @@
 - Подробное логирование в консоль
 - Итоговый статус теста
 - Общий итог тестирования
+- Детальная информация о найденных ошибках с указанием контекста
 """
 
 from selenium import webdriver
@@ -80,6 +81,16 @@ SEARCH_ADDRESS = "1-й Амбулаторный пр., д.2/6"
 # ФУНКЦИИ ДЛЯ УМНОГО ОЖИДАНИЯ И ЗАКРЫТИЯ ОШИБОК
 # ============================================
 
+# Глобальный счетчик и хранилище для ошибок
+error_log = {
+    "total_errors_found": 0,
+    "errors_closed": 0,
+    "errors_details": []
+}
+
+# Текущий контекст выполнения
+current_action_context = "Начало теста"
+
 def try_close_error():
     """Пытается закрыть ошибку по крестику"""
     try:
@@ -103,12 +114,14 @@ def try_close_error():
                             except:
                                 driver.execute_script("arguments[0].click();", btn)
                             print(f"  Найден и кликнут крестик")
+                            error_log["errors_closed"] += 1
                             time.sleep(0.2)
                             return True
                     except:
                         try:
                             driver.execute_script("arguments[0].click();", btn)
                             print(f"  Кликнут крестик через JS")
+                            error_log["errors_closed"] += 1
                             time.sleep(0.2)
                             return True
                         except:
@@ -124,6 +137,7 @@ def try_close_error():
 
 def check_for_persistent_errors():
     """Проверяет наличие стойких ошибок, которые можно закрыть"""
+    global current_action_context
     error_check_selectors = [
         "div.ant-notification-notice-error",
         "div.ant-alert-error",
@@ -139,6 +153,7 @@ def check_for_persistent_errors():
                         error_text = elem.text.strip()
                         if error_text and len(error_text) > 3:
                             text_lower = error_text.lower()
+                            # Закрываем ТОЛЬКО если это реальная ошибка
                             if ("не обнаружено" not in text_lower and
                                     "не найдено" not in text_lower and
                                     "успешно" not in text_lower and
@@ -146,6 +161,14 @@ def check_for_persistent_errors():
                                     "завершено" not in text_lower and
                                     "completed" not in text_lower and
                                     "готово" not in text_lower):
+
+                                # Сохраняем информацию об ошибке с контекстом
+                                error_log["total_errors_found"] += 1
+                                error_log["errors_details"].append({
+                                    "time": time.strftime("%H:%M:%S"),
+                                    "context": current_action_context,
+                                    "text": error_text[:200]  # Ограничиваем длину
+                                })
                                 return True
                 except:
                     continue
@@ -160,10 +183,12 @@ def smart_wait_for_errors_disappear():
 
     start_wait_time = time.time()
     max_wait_time = 5
+    errors_found_in_this_wait = 0
 
     try:
         while time.time() - start_wait_time < max_wait_time:
             if check_for_persistent_errors():
+                errors_found_in_this_wait += 1
                 elapsed = time.time() - start_wait_time
                 if elapsed > 0.5:
                     print(f"  Ошибка держится {elapsed:.1f}с, пробуем закрыть...")
@@ -174,7 +199,10 @@ def smart_wait_for_errors_disappear():
                         print(f"  Не удалось найти кнопку закрытия")
                 time.sleep(0.5)
             else:
-                print(f"Ошибки исчезли")
+                if errors_found_in_this_wait > 0:
+                    print(f"  Все ошибки обработаны (найдено: {errors_found_in_this_wait})")
+                else:
+                    print(f"Ошибки не обнаружены")
                 return True
 
         print(f"Ошибки не исчезли за {max_wait_time} секунд, продолжаем...")
@@ -184,8 +212,12 @@ def smart_wait_for_errors_disappear():
         return False
 
 
-def wait_for_page_load():
+def wait_for_page_load(context=""):
     """Ожидание загрузки данных на странице"""
+    global current_action_context
+    if context:
+        current_action_context = f"Загрузка страницы: {context}"
+
     print("Ожидание загрузки данных...")
     load_start = time.time()
 
@@ -225,6 +257,9 @@ def wait_for_page_load():
 
 def perform_search(search_value):
     """Выполняет поиск по указанному адресу"""
+    global current_action_context
+    current_action_context = f"Поиск по адресу: '{search_value}'"
+
     print(f"Выполняем поиск по адресу: '{search_value}'")
 
     try:
@@ -250,6 +285,9 @@ def perform_search(search_value):
 
 def clear_search():
     """Очищает поле поиска нажатием на крестик"""
+    global current_action_context
+    current_action_context = "Очистка поля поиска"
+
     print("Очищаем поле поиска...")
 
     try:
@@ -273,6 +311,9 @@ def clear_search():
 
 def check_table_for_value(search_value, expected_column="Адрес"):
     """Проверяет таблицу на наличие указанного значения"""
+    global current_action_context
+    current_action_context = f"Проверка таблицы на наличие '{search_value}'"
+
     print(f"Проверяем таблицу на наличие значения: '{search_value}'")
 
     try:
@@ -346,6 +387,9 @@ def check_table_for_value(search_value, expected_column="Адрес"):
 
 def click_element(selector, element_name):
     """Кликает на элемент по селектору"""
+    global current_action_context
+    current_action_context = f"Клик на '{element_name}'"
+
     try:
         element = wait.until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
@@ -381,6 +425,7 @@ print("ШАГ 1: АВТОРИЗАЦИЯ")
 print("=" * 50)
 
 try:
+    current_action_context = "Авторизация в системе"
     driver.get(URL)
     username_field = wait.until(EC.presence_of_element_located((By.ID, "normal_login_username")))
     username_field.send_keys(USERNAME)
@@ -404,6 +449,7 @@ print("ШАГ 2: ПЕРЕХОД В РАЗДЕЛ 'РЕЕСТР ВОДОМЕРОВ
 print("=" * 50)
 
 try:
+    current_action_context = "Переход в раздел Реестр водомеров"
     driver.get('http://10.5.121.74/commercialControl/watermeterStatements')
     wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
     print("Переход в раздел 'Реестр водомеров'")
@@ -437,7 +483,7 @@ print("=" * 50)
 print("ШАГ 5: ОЖИДАНИЕ ЗАГРУЗКИ ДАННЫХ ПОСЛЕ СБРОСА")
 print("=" * 50)
 
-load_duration_reset = wait_for_page_load()
+load_duration_reset = wait_for_page_load("после сброса")
 results["times"]["После сброса"] = load_duration_reset
 
 # 6. ПРИМЕНЕНИЕ ФИЛЬТРА
@@ -453,7 +499,7 @@ print("=" * 50)
 print("ШАГ 7: ОЖИДАНИЕ ЗАГРУЗКИ ДАННЫХ ПОСЛЕ ПРИМЕНЕНИЯ ФИЛЬТРА")
 print("=" * 50)
 
-load_duration_apply = wait_for_page_load()
+load_duration_apply = wait_for_page_load("после применения фильтра")
 results["times"]["После применения"] = load_duration_apply
 
 # 8. ВЫПОЛНЕНИЕ ТЕСТА ПОИСКА ПО АДРЕСУ
@@ -468,7 +514,7 @@ print(f"{'=' * 40}")
 search_success = perform_search(SEARCH_ADDRESS)
 
 print("Ожидаем загрузки данных...")
-load_time = wait_for_page_load()
+load_time = wait_for_page_load("после поиска")
 
 check_success, total_rows, mismatched_rows = check_table_for_value(SEARCH_ADDRESS)
 
@@ -497,7 +543,7 @@ else:
 
 # Очищаем поле поиска
 clear_search()
-wait_for_page_load()
+wait_for_page_load("после очистки поиска")
 time.sleep(1)
 
 # 9. ИТОГОВЫЙ ОТЧЕТ
@@ -523,7 +569,24 @@ if results["search_test"]:
     print(f"  Статус: {status}")
     print(f"  Значение: '{test['value']}'")
     print(f"  Найдено строк: {test['total_rows']}")
+    print(f"  Строк с несоответствием: {test['mismatched_rows']}")
     print(f"  Время загрузки: {test['load_time']:.1f} сек")
+
+print("-" * 80)
+
+# ВЫВОД ИНФОРМАЦИИ ОБ ОШИБКАХ
+print(f"ИНФОРМАЦИЯ ОБ ОШИБКАХ:")
+print("-" * 80)
+print(f"  • Всего ошибок найдено: {error_log['total_errors_found']}")
+print(f"  • Успешно закрыто: {error_log['errors_closed']}")
+
+if error_log['errors_details']:
+    print(f"  • Детали ошибок (где и когда возникли):")
+    for i, err in enumerate(error_log['errors_details'], 1):
+        print(f"    {i}. [{err['time']}] {err['context']}")
+        print(f"       Текст: {err['text']}")
+else:
+    print(f"  • Детали ошибок: не зафиксировано")
 
 print("-" * 80)
 
