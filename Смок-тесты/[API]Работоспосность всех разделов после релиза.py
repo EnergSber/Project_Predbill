@@ -278,6 +278,23 @@ class SystemTester:
 
         return success, status, response_time
 
+    def test_karta_obektov(self) -> Tuple[bool, int, float]:
+        """Карта объектов - POST запрос"""
+        success, status, response_time = self.make_request(
+            name="КАРТА ОБЪЕКТОВ",
+            method="POST",
+            endpoint="/api/bear/script/sync/flat/accountingObjectsMapPredBill",
+            data=self.common_payload,
+            headers={'Content-Type': 'application/json'}
+        )
+
+        if success:
+            print(f"УСПЕХ КАРТА ОБЪЕКТОВ: OK (200) [{response_time:.2f} сек]")
+        else:
+            print(f"ОШИБКА КАРТА ОБЪЕКТОВ: ОШИБКА ({status}) [{response_time:.2f} сек]")
+
+        return success, status, response_time
+
     def test_uzly_ucheta(self) -> Tuple[bool, int, float]:
         """Узлы учета - POST запрос"""
         success, status, response_time = self.make_request(
@@ -848,6 +865,7 @@ class SystemTester:
 
             # Паспортизация и обслуживание
             ("ОБЪЕКТЫ ТЕПЛОСЕТИ", self.test_obekty_teplosetey),
+            ("КАРТА ОБЪЕКТОВ", self.test_karta_obektov),
             ("УЗЛЫ УЧЕТА", self.test_uzly_ucheta),
             ("РЕЕСТР АВЭ|АПП", self.test_reestr_ave_app),
             ("ПРИБОРЫ УЧЕТА", self.test_pribory_ucheta),
@@ -921,6 +939,7 @@ class SystemTester:
             "УПРАВЛЕНИЕ БЛОКИРОВКАМИ": "/api/bear/script/sync/flat/blocksManagement",
             "ВАРЬИРУЕМЫЕ ИНТЕРВАЛЫ": "/api/advanced/dynamic/data/flat/variableIntervals",
             "ОБЪЕКТЫ ТЕПЛОСЕТИ": "/api/bear/script/sync/flat/accountingObjectsPredBill",
+            "КАРТА ОБЪЕКТОВ": "/api/bear/script/sync/flat/accountingObjectsMapPredBill",
             "УЗЛЫ УЧЕТА": "/api/advanced/dynamic/data/flat/commercialNodes",
             "РЕЕСТР АВЭ|АПП": "/api/advanced/dynamic/data/flat/certificates",
             "ПРИБОРЫ УЧЕТА": "/api/bear/script/sync/flat/meteringDevicesPredBill",
