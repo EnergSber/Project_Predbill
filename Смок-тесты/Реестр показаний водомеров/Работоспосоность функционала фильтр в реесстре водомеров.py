@@ -1,37 +1,41 @@
-'''Реестр показаний водомеров
+"""
+ТЕСТОВЫЙ КЕЙС: Реестр показаний водомеров
 
 ЦЕЛЬ: Проверка функциональности фильтрации в разделе "Реестр показаний водомеров"
 
 ОПИСАНИЕ ТЕСТА:
-1. Авторизация в системе
+1. Авторизация в системе под пользователем predbill
 2. Переход в раздел "Реестр показаний водомеров"
 3. Проверка на наличие ошибок на странице
 4. Открытие фильтра и сброс перед заполнением
 5. Последовательное заполнение всех полей фильтра:
    - Расчетный период (календарь со случайными датами)
    - "Выбрать все" для первых двух полей (Источник данных, Статус ведомости)
-   - Ввод текста в поле "Тепловой пункт"
-   - Случайный выбор значений в выпадающих списках (АО, Район, Филиал и др.)
+   - Ввод текста "04-06-0601/032" в поле "Тепловой пункт"
+   - Случайный выбор значений (АО, Район, Филиал, Предприятие, Тип объекта)
    - Заполнение поля "Адрес" с выбором из списка
-   - Ввод "158" в поле "Номер ПУ"
    - Отметка чекбокса "Патрубок"
-6. Сброс фильтров и проверка очистки всех полей
+   - Ввод "158" в поле "Номер ПУ"
+   - Случайный выбор значений (Марка ПУ, Тип точки учета, Виртуальный, Сальдирующий)
+6. Сброс фильтров и проверка очистки всех полей (с учетом плейсхолдеров)
 7. Выбор случайного АО и проверка фильтрации данных в таблице
 8. Финальный сброс фильтров и генерация отчета
 
 ОЖИДАЕМЫЙ РЕЗУЛЬТАТ:
 - Все поля фильтра корректно заполняются и сбрасываются
-- Таблица данных фильтруется по выбранному АО
+- Таблица данных корректно фильтруется по выбранному АО
 - Отсутствие ошибок в процессе выполнения теста
 - Корректная работа всех элементов интерфейса
+- Все плейсхолдеры игнорируются при проверке сброса полей
 
 ОСОБЕННОСТИ:
 - Используются расширенные списки исключений для плейсхолдеров
 - Особые обработчики для полей: календарь, адрес, чекбоксы
+- Tab нажимается после каждого поля, кроме "Расчетный период" и "Адрес"
 - Подробное логирование каждого шага
-- Проверка соответствия данных в таблице выбранному фильтру'''
-
-
+- Проверка соответствия данных в таблице выбранному фильтру
+- Валидация сброса всех полей с игнорированием стандартных плейсхолдеров
+"""
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -44,7 +48,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 import time
 import random
 
-# Инициализация драйвера
+# Настройка браузера
 service = Service(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=service)
 driver.maximize_window()
@@ -55,352 +59,77 @@ URL = 'http://10.5.121.74/login'
 USERNAME = 'predbill'
 PASSWORD = 'predbill'
 
-# Селекторы
+# Селекторы (как в реестре ведомостей)
 FILTER_SELECTOR = "svg[data-icon='filter']"
-RESET_SELECTOR = "svg[data-icon='stop']"
+APPLY_BUTTON_SELECTOR = "button[section='watermeterStatements'] span[role='img'][aria-label='check']"
+RESET_BUTTON_SELECTOR = "button[type='button'] span[role='img'][aria-label='stop']"
 TABLE_SELECTOR = "#root > section > section > main > form > div > div > div > div > div > div.BaseTable__table.BaseTable__table-main > div.BaseTable__body"
 
 # Хранение ошибок и пропущенных полей
 section_errors = []
-skipped_fields = []  # Для хранения пропущенных полей
+skipped_fields = []
+
+# Храним выбранное АО для проверки
+selected_ao_value = None
 
 print("=" * 60)
 print("ТЕСТ РАЗДЕЛА: Реестр показаний водомеров")
 print("=" * 60)
 
 
-# Функция для обработки поля "Расчетный период" с календарем
-def process_date_range_field():
-    """
-    Обрабатывает поле "Расчетный период" - выбирает случайные даты начала и конца
-    """
+def click_svg_element(svg_selector, action_name):
+    """Клик по SVG элементу"""
     try:
-        print(f"Обрабатываем поле: Расчетный период")
-
-        # Селекторы для полей дат
-        start_date_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(1) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div.ant-picker.startDateRangePicker"
-        end_date_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(1) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div:nth-child(2)"
-
-        # Календари (РАЗНЫЕ для начала и конца)
-        start_calendar_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(1) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div.ant-picker.startDateRangePicker.ant-picker-focused > div:nth-child(2) > div > div > div > div > div > div.ant-picker-body > table"
-        end_calendar_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(1) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div.ant-picker.ant-picker-focused > div:nth-child(2) > div > div > div > div > div > div.ant-picker-body > table"
-
-        # 1. Обрабатываем дату начала
-        print(f"  Обрабатываем дату начала...")
+        svg_element = wait.until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, svg_selector))
+        )
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", svg_element)
+        time.sleep(0.3)
         try:
-            start_date_field = wait.until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, start_date_selector))
-            )
-
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", start_date_field)
+            parent_button = svg_element.find_element(By.XPATH, "..")
+            actions = ActionChains(driver)
+            actions.move_to_element(parent_button).click().perform()
+            print(f"{action_name} выполнен")
             time.sleep(0.5)
-
-            print(f"  Кликаем на поле даты начала...")
-            start_date_field.click()
-            time.sleep(1.5)
-
-        except Exception as e:
-            print(f"  Не удалось найти или кликнуть на поле даты начала: {e}")
-            add_skipped_field("Дата начала", f"Поле не найдено: {str(e)[:100]}")
-            return False
-
-        # 2. Выбираем случайную дату из календаря (начало)
-        print(f"  Ищем календарь для даты начала...")
-        try:
-            calendar = wait.until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, start_calendar_selector))
-            )
-            print(f"  Календарь для начала найден")
-
-            # Ищем все доступные даты в календаре (ячейки которые можно выбрать)
-            available_dates = calendar.find_elements(By.CSS_SELECTOR,
-                                                     "td.ant-picker-cell:not(.ant-picker-cell-disabled)")
-            print(f"  Найдено доступных дат для начала: {len(available_dates)}")
-
-            if not available_dates:
-                print(f"  Нет доступных дат в календаре")
-                add_skipped_field("Дата начала", "Нет доступных дат в календаре")
-                # Закрываем календарь кликом вне его
-                start_date_field.click()
-                return False
-
-            # Выбираем случайную дату
-            random_date = random.choice(available_dates)
-            date_text = random_date.text.strip()
-            print(f"  Выбираем случайную дату начала: {date_text}")
-
-            # Кликаем на дату
-            random_date.click()
-            print(f"  Выбрали дату начала: {date_text}")
-            time.sleep(1)  # Ждем применения даты и закрытия календаря
-
-        except Exception as e:
-            print(f"  Ошибка при работе с календарем начала: {e}")
-            add_skipped_field("Дата начала", f"Ошибка работы с календарем: {str(e)[:100]}")
-            return False
-
-        # 3. Обрабатываем дату конца
-        print(f"  Обрабатываем дату конца...")
-        try:
-            end_date_field = wait.until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, end_date_selector))
-            )
-
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", end_date_field)
-            time.sleep(0.5)
-
-            print(f"  Кликаем на поле даты конца...")
-            end_date_field.click()
-            time.sleep(1.5)
-
-        except Exception as e:
-            print(f"  Не удалось найти или кликнуть на поле даты конца: {e}")
-            add_skipped_field("Дата конца", f"Поле не найдено: {str(e)[:100]}")
-            return False
-
-        # 4. Выбираем случайную дату из календаря (конец)
-        print(f"  Ищем календарь для даты конца...")
-        try:
-            calendar = wait.until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, end_calendar_selector))
-            )
-            print(f"  Календарь для конца найден")
-
-            # Ищем все доступные даты в календаре (ячейки которые можно выбрать)
-            available_dates = calendar.find_elements(By.CSS_SELECTOR,
-                                                     "td.ant-picker-cell:not(.ant-picker-cell-disabled)")
-            print(f"  Найдено доступных дат для конца: {len(available_dates)}")
-
-            if not available_dates:
-                print(f"  Нет доступных дат в календаре для конца")
-                add_skipped_field("Дата конца", "Нет доступных дат в календаре")
-                # Закрываем календарь кликом вне его
-                end_date_field.click()
-                return False
-
-            # Выбираем случайную дату (можно попробовать выбрать дату позже начала)
-            random_date = random.choice(available_dates)
-            date_text = random_date.text.strip()
-            print(f"  Выбираем случайную дату конца: {date_text}")
-
-            # Кликаем на дату
-            random_date.click()
-            print(f"  Выбрали дату конца: {date_text}")
-            time.sleep(1)  # Ждем применения даты и закрытия календаря
-
-            # Календарь должен закрыться автоматически после выбора даты конца
-            print(f"  Календарь закрылся автоматически")
             return True
-
-        except Exception as e:
-            print(f"  Ошибка при работе с календарем конца: {e}")
-            add_skipped_field("Дата конца", f"Ошибка работы с календарем: {str(e)[:100]}")
-            return False
-
+        except:
+            actions = ActionChains(driver)
+            actions.move_to_element(svg_element).click().perform()
+            print(f"{action_name} выполнен")
+            time.sleep(0.5)
+            return True
     except Exception as e:
-        print(f"Общая ошибка при обработке поля 'Расчетный период': {e}")
-        add_skipped_field("Расчетный период", f"Общая ошибка обработки: {str(e)[:100]}")
+        print(f"Не удалось {action_name}: {e}")
         return False
 
-# Функция для проверки что все поля сброшены
-def check_fields_emptiness(field_configs):
-    """
-    Проверяет что все поля пустые после сброса фильтров
-    Возвращает список полей которые не сбросились
-    """
-    print("Проверяем сброс всех полей фильтра...")
 
-    not_emptied_fields = []
-
-    for config in field_configs:
-        field_name = config["name"]
-        field_type = config.get("type", "select_random")
-
-        # Пропускаем поля которые не имеют селектора (типа "address", "pu_number" и т.д.)
-        if field_type in ["address", "pu_number", "virtual", "sald"]:
-            continue
-
-        if "selector" not in config:
-            continue
-
-        selector = config["selector"]
-
-        try:
-            # Для полей с выбором "Выбрать все" или случайных значений
-            if field_type in ["select_all", "select_random"]:
-                # Находим элемент и проверяем его текст
-                field_element = driver.find_element(By.CSS_SELECTOR, selector)
-                field_text = field_element.text.strip()
-
-                # ИГНОРИРУЕМ ПЛЕЙСХОЛДЕРЫ
-                placeholder_texts = [
-                    "Выберите значение", "Select value",
-                    "Выбрать все", "Select all",
-                    "Выберите", "Select",
-                    "Выберите...", "Select...",
-                    "Не выбрано", "Not selected",
-                    "Выберите из списка", "Select from list",
-                    "Значение не выбрано", "Value not selected",
-                    "Выбрать", "Choose"
-                ]
-                is_placeholder = any(ph in field_text for ph in placeholder_texts)
-
-                # Проверяем что поле пустое (нет выбранных значений, кроме плейсхолдеров)
-                if field_text and field_text != "" and not is_placeholder:
-                    not_emptied_fields.append({
-                        "field": field_name,
-                        "value": field_text[:50] + "..." if len(field_text) > 50 else field_text,
-                        "reason": "Не сбросилось"
-                    })
-                    print(f"  {field_name}: '{field_text}'")
-                else:
-                    print(f"  {field_name}: пустое (или плейсхолдер)")
-
-            # Для текстовых полей (input)
-            elif field_type == "input":
-                field_element = driver.find_element(By.CSS_SELECTOR, selector)
-                field_value = field_element.get_attribute("value")
-
-                if field_value and field_value.strip():
-                    not_emptied_fields.append({
-                        "field": field_name,
-                        "value": field_value,
-                        "reason": "Не сбросилось"
-                    })
-                    print(f"  {field_name}: '{field_value}'")
-                else:
-                    print(f"  {field_name}: пустое")
-
-        except Exception as e:
-            print(f"  {field_name}: ошибка проверки - {str(e)[:50]}")
-            continue
-
-    # ОСОБАЯ ПРОВЕРКА ДЛЯ ПОЛЯ АДРЕСА
-    print(f"Проверяем поле Адрес...")
+def press_tab():
+    """Нажимает клавишу Tab"""
     try:
-        # Селектор для поля адреса
-        address_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(8) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div"
-        address_field = driver.find_element(By.CSS_SELECTOR, address_selector)
-        address_text = address_field.text.strip()
-
-        # Проверяем плейсхолдеры для адреса
-        address_placeholders = [
-            "Введите адрес", "Введите значение",
-            "Select address", "Выберите адрес",
-            "Адрес", "Address",
-            "Поиск адреса", "Search address",
-            "Начните вводить адрес", "Start typing address", "Выбрать"
-        ]
-        is_address_placeholder = any(ph in address_text for ph in address_placeholders)
-
-        if address_text and address_text != "" and not is_address_placeholder:
-            not_emptied_fields.append({
-                "field": "Адрес",
-                "value": address_text[:50] + "..." if len(address_text) > 50 else address_text,
-                "reason": "Не сбросилось"
-            })
-            print(f"  Адрес: '{address_text}'")
-        else:
-            print(f"  Адрес: пустое (или плейсхолдер)")
-
-    except Exception as e:
-        print(f"  Адрес: ошибка проверки - {str(e)[:50]}")
-
-    # Проверяем чекбокс Патрубок
-    try:
-        checkbox_selector = "#isBranchPipe"
-        checkbox = driver.find_element(By.CSS_SELECTOR, checkbox_selector)
-        if checkbox.is_selected():
-            not_emptied_fields.append({
-                "field": "Патрубок",
-                "value": "отмечен",
-                "reason": "Чекбокс не сброшен"
-            })
-            print(f"  Патрубок: отмечен")
-        else:
-            print(f"  Патрубок: не отмечен")
+        actions = ActionChains(driver)
+        actions.send_keys(Keys.TAB).perform()
+        print("  Нажали Tab")
+        time.sleep(0.3)
+        return True
     except:
-        print(f"  Патрубок: не найден")
+        return False
 
-    # ОСОБАЯ ПРОВЕРКА ДЛЯ ПОЛЯ "РАСЧЕТНЫЙ ПЕРИОД"
-    print(f"Проверяем поле Расчетный период...")
-    try:
-        # Селекторы для полей дат
-        start_date_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(1) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div.ant-picker.startDateRangePicker"
-        end_date_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(1) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div:nth-child(2)"
 
-        # Проверяем дату начала
-        try:
-            start_date_field = driver.find_element(By.CSS_SELECTOR, start_date_selector)
-            start_date_value = start_date_field.text.strip()
-
-            # Проверяем плейсхолдеры для даты начала
-            date_placeholders = [
-                "Выберите дату", "Select date",
-                "Дата начала", "Start date",
-                "Начало", "Start",
-                "Дата конца", "End date",
-                "Конец", "End",
-                "ГГГГ-ММ-ДД", "YYYY-MM-DD",
-                "Выберите период", "Select period"
-            ]
-            is_start_placeholder = any(ph in start_date_value for ph in date_placeholders) or start_date_value == ""
-
-            if start_date_value and not is_start_placeholder:
-                not_emptied_fields.append({
-                    "field": "Дата начала (Расчетный период)",
-                    "value": start_date_value[:50] + "..." if len(start_date_value) > 50 else start_date_value,
-                    "reason": "Не сбросилось"
-                })
-                print(f"  Дата начала: '{start_date_value}'")
-            else:
-                print(f"  Дата начала: пустая (или плейсхолдер)")
-
-        except Exception as e:
-            print(f"  Дата начала: ошибка проверки - {str(e)[:50]}")
-
-        # Проверяем дату конца
-        try:
-            end_date_field = driver.find_element(By.CSS_SELECTOR, end_date_selector)
-            end_date_value = end_date_field.text.strip()
-
-            # Проверяем плейсхолдеры для даты конца
-            date_placeholders = ["Выберите дату", "Select date", "Дата конца", "End date", "Конец", ""]
-            is_end_placeholder = any(ph in end_date_value for ph in date_placeholders) or end_date_value == ""
-
-            if end_date_value and not is_end_placeholder:
-                not_emptied_fields.append({
-                    "field": "Дата конца (Расчетный период)",
-                    "value": end_date_value[:50] + "..." if len(end_date_value) > 50 else end_date_value,
-                    "reason": "Не сбросилось"
-                })
-                print(f"  Дата конца: '{end_date_value}'")
-            else:
-                print(f"  Дата конца: пустая (или плейсхолдер)")
-
-        except Exception as e:
-            print(f"  Дата конца: ошибка проверки - {str(e)[:50]}")
-
-    except Exception as e:
-        print(f"  Расчетный период: ошибка проверки - {str(e)[:50]}")
-
-    return not_emptied_fields
-
-# Функция для добавления ошибок
 def add_error(error_text):
+    """Добавляет ошибку в список"""
     if error_text not in section_errors:
         section_errors.append(error_text)
-        print(f"{error_text}")
+        print(f"  ❌ {error_text}")
 
 
-# Функция для добавления пропущенных полей
 def add_skipped_field(field_name, reason):
+    """Добавляет пропущенное поле в список"""
     skipped_fields.append({"field": field_name, "reason": reason})
-    print(f"Пропущено поле '{field_name}': {reason}")
+    print(f"  ⚠️ Пропущено поле '{field_name}': {reason}")
 
 
-# Функция для закрытия всплывающих ошибок
 def try_close_errors():
+    """Закрывает всплывающие ошибки"""
     try:
         close_selectors = [
             "span.ant-notification-notice-close-x",
@@ -431,8 +160,8 @@ def try_close_errors():
         return False
 
 
-# Функция для ожидания загрузки
 def wait_for_page_load():
+    """Ожидает загрузки страницы"""
     print("Ожидание загрузки данных...")
     load_start = time.time()
 
@@ -464,536 +193,513 @@ def wait_for_page_load():
         return time.time() - load_start
 
 
-# Функция для клика на SVG элемент
-def click_svg_element(svg_selector, action_name):
-    try:
-        svg_element = wait.until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, svg_selector))
-        )
-
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", svg_element)
-        time.sleep(0.3)
-
-        try:
-            parent_button = svg_element.find_element(By.XPATH, "..")
-            actions = ActionChains(driver)
-            actions.move_to_element(parent_button).click().perform()
-            print(f"{action_name} (через родительский элемент)")
-            time.sleep(0.5)
-            return True
-        except:
-            actions = ActionChains(driver)
-            actions.move_to_element(svg_element).click().perform()
-            print(f"{action_name} (непосредственно на SVG)")
-            time.sleep(0.5)
-            return True
-
-    except Exception as e:
-        print(f"Не удалось {action_name}: {e}")
-        return False
-
-
-# Функция для обработки выпадающего списка с рандомным выбором значения
-def process_select_random_value(field_selector, field_name):
+def find_field_by_label(label_text, action_type="select", value=None, select_all=False):
     """
-    Открывает выпадающий список и выбирает случайное доступное значение (кроме "Выбрать все")
-    Возвращает (success, selected_text, error_reason)
+    УНИВЕРСАЛЬНАЯ ФУНКЦИЯ: ищет поле по тексту лейбла и взаимодействует с ним
+
+    Args:
+        label_text: текст лейбла (например, "Источник данных", "АО", "Адрес")
+        action_type: "select" - для выпадающих списков,
+                    "input" - для текстовых полей,
+                    "address" - для адреса,
+                    "checkbox" - для чекбоксов
+        value: значение для ввода (для action_type="input" или "address")
+        select_all: True - выбрать "Выбрать все" (для выпадающих списков)
+
+    Returns:
+        bool: успешность операции
     """
     try:
-        print(f"Обрабатываем поле: {field_name}")
+        print(f"\nИщем поле с лейблом: '{label_text}'")
 
-        # Находим поле
-        try:
-            field_element = wait.until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, field_selector))
-            )
-        except Exception as e:
-            add_skipped_field(field_name, f"Не найдено или недоступно: {str(e)[:100]}")
-            return False, None, "Поле не найдено или недоступно"
+        # Ищем лейбл по тексту
+        label_xpath = f"//label[contains(text(), '{label_text}')]"
+        label = wait.until(EC.presence_of_element_located((By.XPATH, label_xpath)))
+        print(f"  Лейбл найден")
 
-        # Прокручиваем к полю
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", field_element)
-        time.sleep(0.5)
+        # Находим родительский элемент строки
+        row = label.find_element(By.XPATH, "./ancestor::div[contains(@class, 'ant-row')]")
 
-        # Кликаем чтобы открыть список
-        print(f"  Открываем выпадающий список...")
-        field_element.click()
-        time.sleep(1)
+        # Для чекбоксов
+        if action_type == "checkbox":
+            try:
+                # Ищем чекбокс внутри строки
+                checkbox = row.find_element(By.CSS_SELECTOR, "input[type='checkbox']")
+                print(f"  Нашли чекбокс")
 
-        # Ждем появления выпадающего списка
-        dropdown_selector = ".ant-select-dropdown:not(.ant-select-dropdown-hidden)"
-        try:
-            dropdown = wait.until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, dropdown_selector))
-            )
-            print(f"  Выпадающий список открылся")
-        except:
-            print(f"  Не видим выпадающий список")
-            # Закрываем список
-            field_element.click()
-            add_skipped_field(field_name, "Выпадающий список не открылся")
-            return False, None, "Выпадающий список не открылся"
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", checkbox)
+                time.sleep(0.5)
 
-        # Ищем все элементы в списке
-        try:
-            all_options = dropdown.find_elements(By.CSS_SELECTOR, ".ant-select-item-option")
-            print(f"  Найдено опций в списке: {len(all_options)}")
+                # Кликаем по чекбоксу (не по лейблу, а по самому чекбоксу)
+                actions = ActionChains(driver)
+                actions.move_to_element(checkbox).click().perform()
+                print(f"  Отметили чекбокс")
+                time.sleep(0.5)
+                return True
+            except Exception as e:
+                print(f"  Не нашли чекбокс: {e}")
+                add_skipped_field(label_text, "Чекбокс не найден")
+                return False
 
-            if not all_options:
-                print(f"  Список пуст")
-                # Закрываем список
-                field_element.click()
-                add_skipped_field(field_name, "Список пуст")
-                return False, None, "Список пуст"
+        # Для поля адреса
+        elif action_type == "address":
+            return process_address_field_by_label(label_text)
 
-            # Фильтруем опции, исключая "Выбрать все"
-            valid_options = []
-            for i, option in enumerate(all_options):
-                try:
-                    option_text = option.text.strip()
-                    if "Выбрать все" not in option_text and option_text:
-                        valid_options.append((option, option_text))
-                except:
-                    continue
+        # Для текстовых полей
+        elif action_type == "input":
+            # Ищем input внутри строки
+            try:
+                element = row.find_element(By.CSS_SELECTOR, "input")
+                print(f"  Нашли input поле")
+            except:
+                print(f"  Не нашли input поле")
+                add_skipped_field(label_text, "Поле ввода не найдено")
+                return False
 
-            if not valid_options:
-                print(f"  Нет подходящих значений (только 'Выбрать все')")
-                # Закрываем список
-                field_element.click()
-                add_skipped_field(field_name, "Только 'Выбрать все' в списке")
-                return False, None, "Только 'Выбрать все' в списке"
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+            time.sleep(0.5)
 
-            # Выбираем случайное значение
-            random_option, random_text = random.choice(valid_options)
-            print(f"  Выбираем случайное значение: '{random_text}'")
-
-            # Прокручиваем к выбранному элементу
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", random_option)
+            element.click()
             time.sleep(0.3)
-
-            # Кликаем на элемент
-            random_option.click()
-            print(f"  Выбрали случайное значение: '{random_text}'")
-            time.sleep(0.5)
-            return True, random_text, None
-
-        except Exception as e:
-            print(f"  Ошибка при работе со списком: {e}")
-            add_skipped_field(field_name, f"Ошибка работы со списком: {str(e)[:100]}")
-            return False, None, f"Ошибка работы со списком: {str(e)[:100]}"
-
-    except Exception as e:
-        print(f"Ошибка при обработке поля '{field_name}': {e}")
-        add_skipped_field(field_name, f"Общая ошибка обработки: {str(e)[:100]}")
-        return False, None, f"Общая ошибка обработки: {str(e)[:100]}"
-
-
-# Функция для обработки выпадающего списка с выбором "Выбрать все"
-def process_select_all_field(field_selector, field_name):
-    """
-    Открывает выпадающий список и выбирает "Выбрать все"
-    """
-    try:
-        print(f"Обрабатываем поле: {field_name}")
-
-        # Находим поле
-        try:
-            field_element = wait.until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, field_selector))
-            )
-        except Exception as e:
-            add_skipped_field(field_name, f"Не найдено или недоступно: {str(e)[:100]}")
-            return False
-
-        # Прокручиваем к полю
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", field_element)
-        time.sleep(0.5)
-
-        # Кликаем чтобы открыть список
-        print(f"  Открываем выпадающий список...")
-        field_element.click()
-        time.sleep(1)
-
-        # Ищем "Выбрать все" через JavaScript
-        select_all_js = """
-        var elements = document.evaluate(
-            "//*[contains(text(), 'Выбрать все')]", 
-            document, 
-            null, 
-            XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, 
-            null
-        );
-
-        for (var i = 0; i < elements.snapshotLength; i++) {
-            var element = elements.snapshotItem(i);
-            if (element && element.offsetParent !== null) {
-                element.click();
-                return true;
-            }
-        }
-        return false;
-        """
-
-        result = driver.execute_script(select_all_js)
-        if result:
-            print(f"  Выбрали 'Выбрать все'")
+            element.clear()
+            time.sleep(0.3)
+            element.send_keys(value)
+            print(f"  Ввели значение: {value}")
             time.sleep(0.5)
             return True
+
+        # Для выпадающих списков
         else:
-            print(f"  Не нашли 'Выбрать все'")
-            add_skipped_field(field_name, "Не найдено 'Выбрать все'")
-            return False
-
-    except Exception as e:
-        print(f"Ошибка при обработке поля '{field_name}': {e}")
-        add_skipped_field(field_name, f"Общая ошибка обработки: {str(e)[:100]}")
-        return False
-
-
-# Функция для обработки поля "Виртуальный" (рандомный выбор)
-def process_virtual_field():
-    """
-    Обрабатывает поле "Виртуальный" - выбирает случайное значение
-    """
-    try:
-        print(f"Обрабатываем поле: Виртуальный")
-
-        # Селектор поля (ИСПРАВЛЕННЫЙ)
-        field_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(17) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div"
-
-        # Используем общую функцию для рандомного выбора
-        success, value, error_reason = process_select_random_value(field_selector, "Виртуальный")
-        return success
-
-    except Exception as e:
-        print(f"Ошибка при обработке поля 'Виртуальный': {e}")
-        add_skipped_field("Виртуальный", f"Общая ошибка обработки: {str(e)[:100]}")
-        return False
-
-
-# Функция для обработки поля "Сальдирующий" (рандомный выбор)
-def process_sald_field():
-    """
-    Обрабатывает поле "Сальдирующий" - выбирает случайное значение
-    """
-    try:
-        print(f"Обрабатываем поле: Сальдирующий")
-
-        # Селектор поля (ИСПРАВЛЕННЫЙ)
-        field_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(18) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div"
-
-        # Используем общую функцию для рандомного выбора
-        success, value, error_reason = process_select_random_value(field_selector, "Сальдирующий")
-        return success
-
-    except Exception as e:
-        print(f"Ошибка при обработке поля 'Сальдирующий': {e}")
-        add_skipped_field("Сальдирующий", f"Общая ошибка обработки: {str(e)[:100]}")
-        return False
-
-
-# Функция для обработки текстового поля "Номер ПУ"
-def process_pu_number_field():
-    """
-    Обрабатывает текстовое поле "Номер ПУ" - вводит значение 158
-    """
-    try:
-        print(f"Обрабатываем поле: Номер ПУ")
-
-        # Ищем поле по ID meteringDeviceSeries (ОСНОВНОЙ СЕЛЕКТОР)
-        field_selector = "#meteringDeviceSeries"
-
-        try:
-            field_element = wait.until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, field_selector))
-            )
-            print(f"  Нашли поле по селектору: {field_selector}")
-        except:
-            # Если не нашли по основному селектору, пробуем другие варианты
-            field_selectors = [
-                "input#meteringDeviceSeries",
-                "input[placeholder='Введите значение']",
-                ".ant-input[type='text']",
-                "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(14) > div.ant-col.ant-col-14.ant-form-item-control > div > div > span > input"
-            ]
-
-            field_element = None
-            for selector in field_selectors:
+            # Ищем кликабельный элемент для открытия списка
+            try:
+                # Пробуем найти селектор
+                element = row.find_element(By.CSS_SELECTOR, "div.ant-select-selector")
+            except:
                 try:
-                    field_element = wait.until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
-                    )
-                    print(f"  Нашли поле по альтернативному селектору: {selector}")
-                    break
+                    element = row.find_element(By.CSS_SELECTOR, "div.ant-col.ant-col-14 > div > div > div")
                 except:
-                    continue
+                    print(f"  Не нашли кликабельный элемент")
+                    add_skipped_field(label_text, "Кликабельный элемент не найден")
+                    return False
 
-        if not field_element:
-            print(f"  Не нашли поле Номер ПУ")
-            add_skipped_field("Номер ПУ", "Поле не найдено")
-            return False
+            print(f"  Нашли выпадающий список")
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+            time.sleep(0.5)
+            element.click()
+            print(f"  Открыли выпадающий список")
+            time.sleep(1)
 
-        # Прокручиваем к полю
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", field_element)
-        time.sleep(0.5)
+            # Работа с выпадающим списком
+            dropdown_selector = ".ant-select-dropdown:not(.ant-select-dropdown-hidden)"
+            dropdown = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, dropdown_selector)))
+            options = dropdown.find_elements(By.CSS_SELECTOR, ".ant-select-item-option")
+            print(f"  Найдено опций: {len(options)}")
 
-        # Вводим значение
-        value = "158"
-        print(f"  Вводим значение: {value}")
+            if not options:
+                print(f"  Список пуст")
+                add_skipped_field(label_text, "Список пуст")
+                return False
 
-        try:
-            field_element.click()
-            time.sleep(0.3)
-            field_element.clear()
-            time.sleep(0.3)
-            field_element.send_keys(value)
-            print(f"  Значение введено")
-            return True
-        except Exception as e:
-            print(f"  Ошибка при вводе значения: {e}")
-            add_skipped_field("Номер ПУ", f"Ошибка при вводе: {str(e)[:100]}")
-            return False
+            if select_all:
+                for option in options:
+                    try:
+                        option_text = option.text.strip()
+                        if "Выбрать все" in option_text:
+                            option.click()
+                            print(f"  Выбрали 'Выбрать все'")
+                            time.sleep(0.5)
+                            return True
+                    except:
+                        continue
+                print(f"  'Выбрать все' не найдено")
+                add_skipped_field(label_text, "'Выбрать все' не найдено")
+                return False
+            else:
+                valid_options = []
+                for option in options:
+                    try:
+                        option_text = option.text.strip()
+                        if "Выбрать все" not in option_text and option_text:
+                            valid_options.append(option)
+                    except:
+                        continue
+
+                if not valid_options:
+                    print(f"  Нет доступных значений")
+                    add_skipped_field(label_text, "Нет доступных значений")
+                    return False
+
+                random_option = random.choice(valid_options)
+                random_text = random_option.text.strip()
+                random_option.click()
+                print(f"  Выбрали: '{random_text}'")
+                time.sleep(0.5)
+
+                # Сохраняем значение для АО
+                if label_text == "АО":
+                    global selected_ao_value
+                    selected_ao_value = random_text
+                    print(f"  Сохранили АО для проверки: '{selected_ao_value}'")
+
+                return True
 
     except Exception as e:
-        print(f"Ошибка при обработке поля 'Номер ПУ': {e}")
-        add_skipped_field("Номер ПУ", f"Общая ошибка обработки: {str(e)[:100]}")
+        print(f"Ошибка при обработке поля '{label_text}': {e}")
+        add_skipped_field(label_text, str(e)[:100])
         return False
 
 
-# Функция для обработки поля адреса
-def process_address_field():
+def process_date_range_field():
     """
-    Обрабатывает сложное поле адреса
+    Обрабатывает поле "Расчетный период"
+    Выбирает случайный доступный месяц из календаря
     """
     try:
-        print(f"Обрабатываем поле: Адрес")
+        print(f"\nОбрабатываем поле: Расчетный период")
 
-        # Селекторы для поля адреса (ИСПРАВЛЕННЫЕ)
-        address_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(8) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div"
-        address_input_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(8) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div.searchableSelectPopup > div.searchableSelectPopupInsider > div.searchBox.Адрес > input"
-        address_list_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(8) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div.searchableSelectPopup > div.searchableSelectPopupInsider > div.searchBox.Адрес > ul"
-        address_value = "1-й Амбулаторный пр., д.2/6"
+        # Селекторы для полей дат
+        start_date_selector = "input#startMonth"
+        end_date_selector = "input#finishMonth"
 
-        print(f"  Ищем поле адреса...")
+        # Селектор для календаря
+        calendar_dropdown_selector = "div.ant-picker-dropdown:not(.ant-picker-dropdown-hidden)"
 
-        # 1. Находим и кликаем на поле адреса
+        # Селектор для доступных месяцев внутри активного календаря
+        available_month_selector = "td.ant-picker-cell:not(.ant-picker-cell-disabled) div.ant-picker-cell-inner"
+
+        # 1. Выбираем дату начала
+        print(f"  Выбираем дату начала...")
         try:
-            address_field = wait.until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, address_selector))
+            start_date = wait.until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, start_date_selector))
             )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", start_date)
+            time.sleep(0.5)
+
+            start_date.click()
+            print(f"  Кликнули на поле начала")
+            time.sleep(2)
+
+            # Ждем появления календаря
+            calendar = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, calendar_dropdown_selector)))
+
+            # Находим доступные месяцы ТОЛЬКО в этом календаре
+            available_months = calendar.find_elements(By.CSS_SELECTOR, available_month_selector)
+            print(f"  Найдено доступных месяцев для начала: {len(available_months)}")
+
+            if available_months:
+                random_month = random.choice(available_months)
+                month_text = random_month.text.strip()
+                random_month.click()
+                print(f"  Выбрали случайный доступный месяц начала: {month_text}")
+                time.sleep(1)
+            else:
+                print(f"  Нет доступных месяцев для выбора даты начала")
+                add_skipped_field("Расчетный период (начало)", "Нет доступных месяцев")
+                return False
+
         except Exception as e:
-            print(f"  Не удалось найти поле адреса: {e}")
-            add_skipped_field("Адрес", f"Поле не найдено: {str(e)[:100]}")
+            print(f"  Ошибка при выборе даты начала: {e}")
+            add_skipped_field("Расчетный период (начало)", str(e)[:100])
             return False
 
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", address_field)
+        time.sleep(2)
+
+        # 2. Выбираем дату конца
+        print(f"\n  Выбираем дату конца...")
+        try:
+            end_date = wait.until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, end_date_selector))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", end_date)
+            time.sleep(0.5)
+
+            end_date.click()
+            print(f"  Кликнули на поле конца")
+            time.sleep(2)
+
+            calendar = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, calendar_dropdown_selector)))
+            time.sleep(1)
+
+            available_months = calendar.find_elements(By.CSS_SELECTOR, available_month_selector)
+            print(f"  Найдено доступных месяцев для конца: {len(available_months)}")
+
+            if available_months:
+                random_month = random.choice(available_months)
+                month_text = random_month.text.strip()
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", random_month)
+                time.sleep(0.5)
+                random_month.click()
+                print(f"  Выбрали случайный доступный месяц конца: {month_text}")
+                time.sleep(1)
+                return True
+            else:
+                print(f"  Нет доступных месяцев для выбора даты конца")
+                add_skipped_field("Расчетный период (конец)", "Нет доступных месяцев")
+                return False
+
+        except Exception as e:
+            print(f"  Ошибка при выборе даты конца: {e}")
+            add_skipped_field("Расчетный период (конец)", str(e)[:100])
+            return False
+
+    except Exception as e:
+        print(f"Ошибка при обработке расчетного периода: {e}")
+        add_skipped_field("Расчетный период", str(e)[:100])
+        return False
+
+
+def process_address_field_by_label(label_text):
+    """
+    Специализированная функция для обработки поля адреса
+    """
+    try:
+        print(f"\nОбрабатываем поле: {label_text}")
+
+        # Находим лейбл и строку
+        label_xpath = f"//label[contains(text(), '{label_text}')]"
+        label = wait.until(EC.presence_of_element_located((By.XPATH, label_xpath)))
+        row = label.find_element(By.XPATH, "./ancestor::div[contains(@class, 'ant-row')]")
+
+        # Находим элемент адреса
+        try:
+            address_element = row.find_element(By.CSS_SELECTOR, "div.searchableSelectHeader")
+            print(f"  Нашли поле адреса")
+        except:
+            print(f"  Не нашли поле адреса")
+            add_skipped_field(label_text, "Поле адреса не найдено")
+            return False
+
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", address_element)
         time.sleep(0.5)
 
-        print(f"  Кликаем на поле адреса...")
-        try:
-            address_field.click()
-            time.sleep(1.5)
-        except Exception as e:
-            print(f"  Не удалось кликнуть на поле адреса: {e}")
-            add_skipped_field("Адрес", f"Не удалось кликнуть: {str(e)[:100]}")
-            return False
+        address_element.click()
+        print(f"  Кликнули на поле адреса для раскрытия")
+        time.sleep(2)
 
-        # 2. Находим поле ввода
+        # Ждем появления searchableSelectPopup
+        popup_selector = "div.searchableSelectPopup"
+        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, popup_selector)))
+        print(f"  Появилось окно поиска адреса")
+        time.sleep(1)
+
+        # Находим поле ввода внутри popup
+        input_selector = "div.searchableSelectPopupInsider div.searchBox.Адрес input.searchInput"
         try:
-            address_input = wait.until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, address_input_selector))
+            search_input = wait.until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, input_selector))
             )
             print(f"  Нашли поле ввода адреса")
         except:
-            print(f"  Не удалось найти поле ввода адреса")
-            add_skipped_field("Адрес", "Поле ввода не найдено")
+            print(f"  Не нашли поле ввода адреса")
+            add_skipped_field(label_text, "Поле ввода не найдено")
             return False
 
-        # 3. Вводим адрес
-        print(f"  Вводим адрес: {address_value}")
-        try:
-            address_input.clear()
-            time.sleep(0.3)
-            address_input.send_keys(address_value)
-            print(f"  Адрес введен")
-            time.sleep(3)  # Ждем загрузки результатов
-        except Exception as e:
-            print(f"  Ошибка при вводе адреса: {e}")
-            add_skipped_field("Адрес", f"Ошибка при вводе: {str(e)[:100]}")
-            return False
+        # Вводим адрес
+        address_value = "1-й Амбулаторный пр., д.2/6"
+        search_input.clear()
+        time.sleep(0.3)
+        search_input.send_keys(address_value)
+        print(f"  Ввели адрес: {address_value}")
+        time.sleep(3)
 
-        # 4. Ищем и выбираем адрес из списка
-        print(f"  Ищем список адресов...")
+        # Ждем появления списка
+        list_selector = "div.searchableSelectPopupInsider div.searchBox.Адрес ul.itemsList li"
         try:
-            address_list = wait.until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, address_list_selector))
-            )
-            print(f"  Список адресов найден")
-
-            address_items = address_list.find_elements(By.TAG_NAME, "li")
-            print(f"  Найдено адресов: {len(address_items)}")
+            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, list_selector)))
+            address_items = driver.find_elements(By.CSS_SELECTOR, list_selector)
+            print(f"  Найдено элементов в списке: {len(address_items)}")
 
             if address_items:
-                # Выбираем ПЕРВЫЙ адрес
-                first_item = address_items[0]
-                first_item_text = first_item.text.strip()
-                first_item.click()
-                print(f"  Выбрали адрес из списка: '{first_item_text}'")
-                time.sleep(0.5)
+                # Ищем "Выбрать все"
+                select_all_found = False
+                for item in address_items:
+                    item_text = item.text.strip()
+                    if "Выбрать все" in item_text:
+                        item.click()
+                        print(f"  Выбрали: '{item_text}'")
+                        select_all_found = True
+                        break
 
-                # 5. Кликаем по пустой области чтобы закрыть выпадающий список
-                print(f"  Кликаем по пустой области чтобы закрыть список...")
+                if not select_all_found and address_items:
+                    # Если не нашли "Выбрать все", выбираем первый
+                    first_item = address_items[0]
+                    first_item_text = first_item.text.strip()
+                    first_item.click()
+                    print(f"  Выбрали первый элемент: '{first_item_text}'")
+                time.sleep(1)
+
+                # Кликаем на поле "Тепловой пункт" чтобы закрыть список
                 try:
-                    # Находим заголовок или другой элемент рядом для клика
-                    header_selectors = [
-                        ".ant-drawer-header",
-                        ".ant-drawer-title",
-                        "label[for*='address']",
-                        "div.ant-form-item-label"
-                    ]
-
-                    for selector in header_selectors:
-                        try:
-                            element = driver.find_element(By.CSS_SELECTOR, selector)
-                            if element.is_displayed():
-                                actions = ActionChains(driver)
-                                actions.move_to_element(element).click().perform()
-                                print(f"  Кликнули по элементу '{selector}' чтобы закрыть список")
-                                time.sleep(0.5)
-                                break
-                        except:
-                            continue
-
-                    # Если не нашли подходящий элемент, кликаем по заголовку формы
-                    try:
-                        form_title = driver.find_element(By.CSS_SELECTOR, ".ant-drawer-title")
-                        actions = ActionChains(driver)
-                        actions.move_to_element(form_title).click().perform()
-                        print(f"  Кликнули по заголовку формы")
-                        time.sleep(0.5)
-                    except:
-                        # Если ничего не работает, кликаем по координатам рядом с полем
-                        try:
-                            address_field = driver.find_element(By.CSS_SELECTOR, address_selector)
-                            actions = ActionChains(driver)
-                            # Сдвигаемся на 200 пикселей вправо и кликаем
-                            actions.move_to_element_with_offset(address_field, 200, 0).click().perform()
-                            print(f"  Кликнули рядом с полем адреса")
-                            time.sleep(0.5)
-                        except Exception as e:
-                            print(f"  Не удалось кликнуть рядом: {e}")
-
-                except Exception as e:
-                    print(f"  Ошибка при закрытии выпадающего списка: {e}")
+                    teplovoy_punkt = driver.find_element(By.XPATH, "//label[contains(text(), 'Тепловой пункт')]")
+                    teplovoy_punkt.click()
+                    print(f"  Кликнули на поле Тепловой пункт для закрытия списка")
+                    time.sleep(0.5)
+                except:
+                    # Если не нашли, кликаем по координатам
+                    actions = ActionChains(driver)
+                    actions.move_by_offset(500, 200).click().perform()
+                    print(f"  Кликнули по координатам для закрытия списка")
+                    time.sleep(0.5)
 
                 return True
             else:
                 print(f"  Список адресов пуст")
-                add_skipped_field("Адрес", "Список адресов пуст")
+                add_skipped_field(label_text, "Список адресов пуст")
                 return False
 
         except Exception as e:
-            print(f"  Ошибка при работе со списком адресов: {e}")
-            add_skipped_field("Адрес", f"Ошибка работы со списком: {str(e)[:100]}")
+            print(f"  Не дождались появления списка адресов: {e}")
+            add_skipped_field(label_text, f"Ошибка при выборе адреса: {str(e)[:100]}")
             return False
 
     except Exception as e:
-        print(f"Общая ошибка при обработке поля 'Адрес': {e}")
-        add_skipped_field("Адрес", f"Общая ошибка обработки: {str(e)[:100]}")
+        print(f"Ошибка при обработке поля адреса: {e}")
+        add_skipped_field("Адрес", str(e)[:100])
         return False
 
 
-# Функция для нажатия Tab
-def press_tab():
-    """Нажимает клавишу Tab"""
+def check_fields_emptiness():
+    """
+    Проверяет что все поля пустые после сброса фильтров
+    Возвращает список полей которые не сбросились
+    """
+    print("\nПроверяем сброс всех полей фильтра...")
+
+    not_emptied_fields = []
+
+    # Список полей для проверки
+    fields_to_check = [
+        ("Источник данных", "select"),
+        ("Статус ведомости", "select"),
+        ("Тепловой пункт", "input"),
+        ("АО", "select"),
+        ("Район", "select"),
+        ("Адрес", "address"),
+        ("Филиал", "select"),
+        ("Предприятие", "select"),
+        ("Тип объекта", "select"),
+        ("Номер ПУ", "input"),
+        ("Марка ПУ", "select"),
+        ("Тип точки учета", "select"),
+        ("Виртуальный", "select"),
+        ("Сальдирующий", "select")
+    ]
+
+    # Плейсхолдеры для игнорирования
+    placeholder_texts = [
+        "Выберите значение", "Select value",
+        "Выбрать все", "Select all",
+        "Выберите", "Select",
+        "Выберите...", "Select...",
+        "Не выбрано", "Not selected",
+        "Выберите из списка", "Select from list",
+        "Значение не выбрано", "Value not selected",
+        "Выбрать", "Choose",
+        "Введите адрес", "Введите значение",
+        "Адрес", "Address",
+        "Поиск адреса", "Search address"
+    ]
+
+    for field_name, field_type in fields_to_check:
+        try:
+            # Пытаемся найти поле по лейблу
+            label_xpath = f"//label[contains(text(), '{field_name}')]"
+            label = driver.find_element(By.XPATH, label_xpath)
+            row = label.find_element(By.XPATH, "./ancestor::div[contains(@class, 'ant-row')]")
+
+            if field_type == "input":
+                element = row.find_element(By.CSS_SELECTOR, "input")
+                field_value = element.get_attribute("value")
+                if field_value and field_value.strip():
+                    is_placeholder = any(ph in field_value for ph in placeholder_texts)
+                    if not is_placeholder:
+                        not_emptied_fields.append(f"{field_name}: {field_value}")
+                        print(f"  {field_name}: '{field_value}'")
+                    else:
+                        print(f"  {field_name}: плейсхолдер")
+                else:
+                    print(f"  {field_name}: пустое")
+
+            elif field_type == "address":
+                try:
+                    address_element = row.find_element(By.CSS_SELECTOR, "div.searchableSelectHeader")
+                    field_text = address_element.text.strip()
+                    if field_text and field_text != "Выбрать" and not any(ph in field_text for ph in placeholder_texts):
+                        not_emptied_fields.append(f"Адрес: {field_text}")
+                        print(f"  Адрес: '{field_text}'")
+                    else:
+                        print(f"  Адрес: пустое (Выбрать)")
+                except:
+                    print(f"  Адрес: поле не найдено")
+
+            else:  # select
+                try:
+                    element = row.find_element(By.CSS_SELECTOR, "div.ant-select-selector")
+                    field_text = element.text.strip()
+                    is_placeholder = any(ph in field_text for ph in placeholder_texts)
+                    if field_text and not is_placeholder:
+                        not_emptied_fields.append(f"{field_name}: {field_text}")
+                        print(f"  {field_name}: '{field_text}'")
+                    else:
+                        print(f"  {field_name}: пустое (плейсхолдер)")
+                except:
+                    print(f"  {field_name}: не удалось проверить")
+
+        except Exception as e:
+            print(f"  {field_name}: ошибка проверки - {str(e)[:50]}")
+            continue
+
+    # Проверка чекбокса Патрубок
+    print(f"\nПроверяем чекбокс Патрубок...")
     try:
-        actions = ActionChains(driver)
-        actions.send_keys(Keys.TAB).perform()
-        print(f"  Нажали Tab")
-        time.sleep(0.3)
-        return True
+        checkbox_label = driver.find_element(By.XPATH, "//label[contains(text(), 'Патрубок')]")
+        checkbox_row = checkbox_label.find_element(By.XPATH, "./ancestor::div[contains(@class, 'ant-row')]")
+        checkbox = checkbox_row.find_element(By.CSS_SELECTOR, "input[type='checkbox']")
+
+        if checkbox.is_selected():
+            not_emptied_fields.append("Патрубок: отмечен")
+            print(f"  Патрубок: отмечен")
+        else:
+            print(f"  Патрубок: не отмечен")
     except:
-        return False
+        print(f"  Патрубок: не найден")
 
-
-# Функция для применения фильтров
-def apply_filters():
+    # Проверка расчетного периода
+    print(f"\nПроверяем поле Расчетный период...")
     try:
-        print("Применяем фильтры...")
-        time.sleep(1)
+        start_date = driver.find_element(By.CSS_SELECTOR, "input#startMonth")
+        end_date = driver.find_element(By.CSS_SELECTOR, "input#finishMonth")
 
-        # Селектор для кнопки "Применить" в фильтре
-        apply_button_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > div > div.filterOperations > button:nth-child(1) > span > svg"
+        start_value = start_date.get_attribute("value")
+        end_value = end_date.get_attribute("value")
 
-        try:
-            # Находим SVG элемент кнопки "Применить"
-            apply_svg = wait.until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, apply_button_selector))
-            )
+        date_placeholders = ["Выберите дату", "Select date", "Начало", "Конец", "янв", ""]
 
-            # Кликаем на родительский элемент кнопки
-            parent_button = apply_svg.find_element(By.XPATH, "..")
-            actions = ActionChains(driver)
-            actions.move_to_element(parent_button).click().perform()
-            print(f"  Нажали 'Применить'")
-            return True
+        if start_value and start_value.strip() and not any(ph in start_value for ph in date_placeholders):
+            not_emptied_fields.append(f"Дата начала: {start_value}")
+            print(f"  Дата начала: '{start_value}'")
+        else:
+            print(f"  Дата начала: пустая")
 
-        except Exception as e:
-            print(f"  Не удалось нажать 'Применить': {e}")
-            return False
+        if end_value and end_value.strip() and not any(ph in end_value for ph in date_placeholders):
+            not_emptied_fields.append(f"Дата конца: {end_value}")
+            print(f"  Дата конца: '{end_value}'")
+        else:
+            print(f"  Дата конца: пустая")
+    except:
+        print(f"  Расчетный период: ошибка проверки")
 
-    except Exception as e:
-        print(f"Ошибка при применении фильтров: {e}")
-        add_error(f"Ошибка при применении фильтров: {e}")
-        return False
+    return not_emptied_fields
 
 
-# Функция для клика на чекбокс "Патрубок"
-def click_patrubok_checkbox():
-    """
-    Кликает на чекбокс "Патрубок"
-    """
-    try:
-        print(f"Обрабатываем чекбокс: Патрубок")
-
-        # Селектор для чекбокса
-        checkbox_selector = "#isBranchPipe"
-
-        try:
-            # Находим чекбокс
-            checkbox = wait.until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, checkbox_selector))
-            )
-
-            # Прокручиваем к чекбоксу
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", checkbox)
-            time.sleep(0.5)
-
-            # Кликаем на чекбокс
-            checkbox.click()
-            print(f"  Чекбокс 'Патрубок' отмечен")
-            time.sleep(0.5)
-            return True
-
-        except Exception as e:
-            print(f"  Не удалось найти или кликнуть чекбокс 'Патрубок': {e}")
-            add_skipped_field("Патрубок", f"Чекбокс не найден: {str(e)[:100]}")
-            return False
-
-    except Exception as e:
-        print(f"Ошибка при обработке чекбокса 'Патрубок': {e}")
-        add_skipped_field("Патрубок", f"Общая ошибка обработки: {str(e)[:100]}")
-        return False
-
-
-# Функция для проверки таблицы с выбранным АО
 def check_table_for_ao(selected_ao):
     """
     Проверяет таблицу на соответствие выбранному АО
     Возвращает (success, row_count)
     """
     try:
-        print(f"Проверяем таблицу для АО: '{selected_ao}'")
+        print(f"\nПроверяем таблицу для АО: '{selected_ao}'")
 
         # Ждем загрузки таблицы
         print("Ожидание загрузки таблицы после применения фильтра...")
@@ -1025,13 +731,12 @@ def check_table_for_ao(selected_ao):
         for i, row in enumerate(rows, 1):
             try:
                 row_text = row.text
-                # Проверяем, содержит ли строка выбранное АО
                 if selected_ao not in row_text:
                     mismatched_rows.append(i)
-                    if len(mismatched_rows) <= 3:  # Ограничиваем вывод
+                    if len(mismatched_rows) <= 3:
                         print(f"    Строка {i}: НЕ содержит '{selected_ao}'")
                 else:
-                    if i <= 3:  # Ограничиваем вывод
+                    if i <= 3:
                         print(f"    Строка {i}: содержит '{selected_ao}'")
             except:
                 continue
@@ -1053,10 +758,57 @@ def check_table_for_ao(selected_ao):
         return False, 0
 
 
+def apply_filters():
+    """Нажимает кнопку Применить (как в реестре ведомостей)"""
+    try:
+        print("\nПрименяем фильтры...")
+        time.sleep(1)
+
+        apply_svg = wait.until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, APPLY_BUTTON_SELECTOR))
+        )
+
+        parent_button = apply_svg.find_element(By.XPATH, "..")
+        actions = ActionChains(driver)
+        actions.move_to_element(parent_button).click().perform()
+        print(f"  Нажали 'Применить'")
+        return True
+
+    except Exception as e:
+        print(f"  Не удалось нажать 'Применить': {e}")
+        add_error(f"Ошибка при применении фильтров: {e}")
+        return False
+
+
+def reset_filters():
+    """Нажимает кнопку Сброс (как в реестре ведомостей)"""
+    try:
+        print("\nСбрасываем фильтры...")
+
+        reset_svg = wait.until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, RESET_BUTTON_SELECTOR))
+        )
+
+        parent_button = reset_svg.find_element(By.XPATH, "..")
+        actions = ActionChains(driver)
+        actions.move_to_element(parent_button).click().perform()
+        print(f"  Нажали 'Сброс'")
+        time.sleep(1)
+        return True
+
+    except Exception as e:
+        print(f"  Не удалось нажать 'Сброс': {e}")
+        add_error(f"Ошибка при сбросе фильтров: {e}")
+        return False
+
+
 # ОСНОВНОЙ КОД
+print("=" * 60)
+print("ТЕСТ РАЗДЕЛА: Реестр показаний водомеров")
+print("=" * 60)
 
 # 1. АВТОРИЗАЦИЯ
-print("=" * 50)
+print("\n" + "=" * 50)
 print("ШАГ 1: АВТОРИЗАЦИЯ")
 print("=" * 50)
 
@@ -1070,14 +822,13 @@ try:
     login_button.click()
     wait.until_not(EC.url_contains('login'))
     print("Авторизация успешна")
-
 except Exception as e:
     print(f"Авторизация не удалась: {e}")
     driver.quit()
     exit()
 
 # 2. ПЕРЕХОД В РАЗДЕЛ
-print("=" * 50)
+print("\n" + "=" * 50)
 print("ШАГ 2: ПЕРЕХОД В РАЗДЕЛ")
 print("=" * 50)
 
@@ -1089,14 +840,13 @@ try:
     wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
     print(f"Переход в раздел '{section_name}'")
     time.sleep(2)
-
 except Exception as e:
     add_error(f"Не удалось перейти в раздел: {e}")
     driver.quit()
     exit()
 
-# 3. ПРОВЕРКА ОШИБОК
-print("=" * 50)
+# 3. ПРОВЕРКА ОШИБОК НА СТРАНИЦЕ
+print("\n" + "=" * 50)
 print("ШАГ 3: ПРОВЕРКА ОШИБОК НА СТРАНИЦЕ")
 print("=" * 50)
 
@@ -1130,7 +880,7 @@ if not error_found:
 try_close_errors()
 
 # 4. ОТКРЫТИЕ ФИЛЬТРА
-print("=" * 50)
+print("\n" + "=" * 50)
 print("ШАГ 4: ОТКРЫТИЕ ФИЛЬТРА")
 print("=" * 50)
 
@@ -1155,240 +905,128 @@ else:
 time.sleep(2)
 
 # 5. СБРОС ФИЛЬТРОВ ПЕРЕД ЗАПОЛНЕНИЕМ
-print("=" * 50)
+print("\n" + "=" * 50)
 print("ШАГ 5: СБРОС ФИЛЬТРОВ ПЕРЕД ЗАПОЛНЕНИЕМ")
 print("=" * 50)
 
-reset_clicked = False
-
-for attempt in range(max_attempts):
-    if click_svg_element(RESET_SELECTOR, f"Сбросить фильтры (попытка {attempt + 1})"):
-        reset_clicked = True
-        break
-    else:
-        time.sleep(0.5)
-
+reset_clicked = reset_filters()
 if not reset_clicked:
     add_error("Не удалось сбросить фильтры перед заполнением")
-else:
-    print("Фильтры сброшены перед заполнением")
 
-# 6. ОЖИДАНИЕ ЗАГРУЗКИ ПОСЛЕ СБРОСА
-print("=" * 50)
-print("ШАГ 6: ОЖИДАНИЕ ЗАГРУЗКИ ДАННЫХ ПОСЛЕ СБРОСА")
-print("=" * 50)
-
+# Ожидание загрузки после сброса
 load_duration = wait_for_page_load()
 
-# 7. ЗАПОЛНЕНИЕ ПОЛЕЙ ФИЛЬТРА (в правильном порядке)
+# 6. ЗАПОЛНЕНИЕ ПОЛЕЙ ФИЛЬТРА
+print("\n" + "=" * 50)
+print("ШАГ 6: ЗАПОЛНЕНИЕ ПОЛЕЙ ФИЛЬТРА")
 print("=" * 50)
-print("ШАГ 7: ЗАПОЛНЕНИЕ ПОЛЕЙ ФИЛЬТРА")
-print("=" * 50)
 
-# Определяем селекторы полей (в порядке заполнения)
-field_configs = [
-    # Расчетный период (календарь)
-    {"name": "Расчетный период", "type": "date_range"},
-    # Первые два поля - выбираем "Выбрать все"
-    {"name": "Источник данных",
-     "selector": "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(2) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div > div.ant-select-selection-overflow",
-     "type": "select_all"},
-    {"name": "Статус ведомости",
-     "selector": "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(3) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div",
-     "type": "select_all"},
-
-    # Тепловой пункт (текстовое поле)
-    {"name": "Тепловой пункт",
-     "selector": "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(4) > div.ant-col.ant-col-14.ant-form-item-control > div > div > span > input",
-     "type": "input", "value": "04-06-0601/032"},
-
-    # Новые поля (по порядку)
-    {"name": "АО",
-     "selector": "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(6) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div > div.ant-select-selection-overflow",
-     "type": "select_random"},
-    {"name": "Район",
-     "selector": "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(7) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div > div.ant-select-selection-overflow",
-     "type": "select_random"},
-
-    # Поле Адрес
-    {"name": "Адрес", "type": "address"},
-
-    # Филиал (случайное значение)
-    {"name": "Филиал",
-     "selector": "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(9) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div",
-     "type": "select_random"},
-
-    # Предприятие (случайное значение)
-    {"name": "Предприятие",
-     "selector": "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(10) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div",
-     "type": "select_random"},
-
-    # Тип объекта (случайное значение)
-    {"name": "Тип объекта",
-     "selector": "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(11) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div",
-     "type": "select_random"},
-
-    # Номер ПУ (текстовое поле)
-    {"name": "Номер ПУ", "type": "pu_number"},
-
-    # Марка ПУ (случайное значение)
-    {"name": "Марка ПУ",
-     "selector": "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(15) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div",
-     "type": "select_random"},
-
-    # Тип точки учета (случайное значение)
-    {"name": "Тип точки учета",
-     "selector": "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(16) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div",
-     "type": "select_random"},
-
-    # Виртуальный (рандомный выбор)
-    {"name": "Виртуальный", "type": "virtual"},
-
-    # Сальдирующий (рандомный выбор)
-    {"name": "Сальдирующий", "type": "sald"},
-]
-
-# Обрабатываем поля в правильном порядке
+# Словарь для хранения результатов
 results = {}
-selected_ao_value = None  # Переменная для хранения выбранного АО
 
-for i, config in enumerate(field_configs, 1):
-    field_name = config["name"]
-    field_type = config.get("type", "select_random")
+# Расчетный период
+results["Расчетный период"] = process_date_range_field()
+# Не нажимаем Tab после расчетного периода
 
-    print(f"[{i}/{len(field_configs)}] Поле: {field_name}")
+# Источник данных (Выбрать все)
+results["Источник данных"] = find_field_by_label("Источник данных", select_all=True)
+press_tab()
 
-    success = False
-    selected_value = None
-    error_reason = None
+# Статус ведомости (Выбрать все)
+results["Статус ведомости"] = find_field_by_label("Статус ведомости", select_all=True)
+press_tab()
 
+# Тепловой пункт (текстовое поле)
+results["Тепловой пункт"] = find_field_by_label("Тепловой пункт", action_type="input", value="04-06-0601/032")
+press_tab()
 
-    if field_type == "date_range":
-        # Обрабатываем Расчетный период (календарь)
-        success = process_date_range_field()
+# АО
+results["АО"] = find_field_by_label("АО")
+press_tab()
 
-    elif field_type == "select_all":
-        # Выбираем "Выбрать все"
-        success = process_select_all_field(config["selector"], field_name)
+# Район
+results["Район"] = find_field_by_label("Район")
+press_tab()
 
-    elif field_type == "select_random":
-        # Выбираем случайное доступное значение (кроме "Выбрать все")
-        success, selected_value, error_reason = process_select_random_value(config["selector"], field_name)
+# Адрес
+results["Адрес"] = find_field_by_label("Адрес", action_type="address")
+# Не нажимаем Tab после адреса
 
-        # Сохраняем выбранное значение АО
-        if field_name == "АО" and success and selected_value:
-            selected_ao_value = selected_value
-            print(f"  Сохранили выбранное АО: '{selected_ao_value}'")
+# Филиал
+results["Филиал"] = find_field_by_label("Филиал")
+press_tab()
 
-    elif field_type == "input":
-        # Текстовое поле
-        try:
-            field_element = wait.until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, config["selector"]))
-            )
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", field_element)
-            time.sleep(0.5)
+# Предприятие
+results["Предприятие"] = find_field_by_label("Предприятие")
+press_tab()
 
-            field_element.click()
-            time.sleep(0.3)
-            field_element.clear()
-            time.sleep(0.3)
-            field_element.send_keys(config["value"])
-            print(f"  Ввели: {config['value']}")
-            success = True
-        except Exception as e:
-            print(f"  Ошибка: {e}")
-            add_skipped_field(field_name, f"Ошибка ввода: {str(e)[:100]}")
-            success = False
+# Тип объекта
+results["Тип объекта"] = find_field_by_label("Тип объекта")
+press_tab()
 
-    elif field_type == "address":
-        # Особое поле адреса
-        success = process_address_field()
+# Патрубок (чекбокс)
+results["Патрубок"] = find_field_by_label("Патрубок", action_type="checkbox")
+press_tab()
 
-    elif field_type == "virtual":
-        # Поле "Виртуальный"
-        success = process_virtual_field()
+# Номер ПУ
+results["Номер ПУ"] = find_field_by_label("Номер ПУ", action_type="input", value="158")
+press_tab()
 
-    elif field_type == "sald":
-        # Поле "Сальдирующий"
-        success = process_sald_field()
+# Марка ПУ
+results["Марка ПУ"] = find_field_by_label("Марка ПУ")
+press_tab()
 
-    elif field_type == "pu_number":
-        # Поле "Номер ПУ"
-        success = process_pu_number_field()
+# Тип точки учета
+results["Тип точки учета"] = find_field_by_label("Тип точки учета")
+press_tab()
 
-    results[field_name] = success
+# Виртуальный
+results["Виртуальный"] = find_field_by_label("Виртуальный")
+press_tab()
 
-    # Нажимаем Tab после каждого поля (кроме последнего)
-    if i < len(field_configs):
-        press_tab()
-        time.sleep(0.5)
+# Сальдирующий
+results["Сальдирующий"] = find_field_by_label("Сальдирующий")
+# Не нажимаем Tab после последнего поля
 
-# Кликаем на чекбокс "Патрубок" в самом конце
-patrubok_success = click_patrubok_checkbox()
-results["Патрубок"] = patrubok_success
+print("\nВсе поля обработаны")
 
-print("Все поля обработаны")
-
-# 8. СБРОС ФИЛЬТРОВ ПЕРЕД ПРОВЕРКОЙ АО
-print("=" * 50)
-print("ШАГ 8: СБРОС ФИЛЬТРОВ ПЕРЕД ПРОВЕРКОЙ АО")
+# 7. СБРОС ФИЛЬТРОВ И ПРОВЕРКА ОЧИСТКИ
+print("\n" + "=" * 50)
+print("ШАГ 7: СБРОС ФИЛЬТРОВ И ПРОВЕРКА ОЧИСТКИ")
 print("=" * 50)
 
-reset_before_ao_check = False
-
-for attempt in range(max_attempts):
-    if click_svg_element(RESET_SELECTOR, f"Сбросить фильтры перед проверкой АО (попытка {attempt + 1})"):
-        reset_before_ao_check = True
-        break
-    else:
-        time.sleep(0.5)
-
-if not reset_before_ao_check:
-    add_error("Не удалось сбросить фильтры перед проверкой АО")
-else:
-    print("Фильтры сброшены перед проверкой АО")
+reset_before_check = reset_filters()
 time.sleep(1)
 
-# ПРОВЕРЯЕМ ЧТО ВСЕ ПОЛЯ СБРОСИЛИСЬ
-not_emptied_fields = check_fields_emptiness(field_configs)
+# Проверяем что все поля сбросились
+not_emptied_fields = check_fields_emptiness()
 
 if not_emptied_fields:
-    print(f"ВНИМАНИЕ! Найдены поля которые не сбросились ({len(not_emptied_fields)}):")
+    print(f"\nВНИМАНИЕ! Найдены поля которые не сбросились ({len(not_emptied_fields)}):")
     for field_info in not_emptied_fields:
-        print(f"  {field_info['field']}: {field_info['value']} ({field_info['reason']})")
-        # ДОБАВЛЯЕМ ОШИБКУ ТОЛЬКО ЕСЛИ ЭТО НЕ ПЛЕЙСХОЛДЕР
-        if "Выберите значение" not in field_info['value'] and "Введите адрес" not in field_info['value']:
-            add_error(f"Поле '{field_info['field']}' не сбросилось: {field_info['value']}")
+        print(f"  • {field_info}")
+        add_error(f"Поле не сбросилось: {field_info}")
 else:
-    print("Все поля успешно сброшены!")
+    print("\nВсе поля успешно сброшены!")
 
-# 9. ВЫБОР И ПРОВЕРКА АО
+# 8. ВЫБОР И ПРОВЕРКА АО
+print("\n" + "=" * 50)
+print("ШАГ 8: ВЫБОР И ПРОВЕРКА АО")
 print("=" * 50)
-print("ШАГ 9: ВЫБОР И ПРОВЕРКА АО")
-print("=" * 50)
 
-# Теперь выбираем АО заново
-print("Выбираем АО для проверки фильтрации...")
+print("\nВыбираем АО для проверки фильтрации...")
+ao_selected = find_field_by_label("АО")
 
-# Селектор для поля АО (скорректирован номер div)
-ao_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > form > div > div:nth-child(6) > div.ant-col.ant-col-14.ant-form-item-control > div > div > div > div > div.ant-select-selection-overflow"
+if ao_selected and selected_ao_value:
+    print(f"\nВыбранное АО для проверки: '{selected_ao_value}'")
 
-# Выбираем случайное АО
-success, selected_ao_value, error_reason = process_select_random_value(ao_selector, "АО для проверки")
-
-if success and selected_ao_value:
-    print(f"Выбранное АО для проверки: '{selected_ao_value}'")
-
-    # Применяем фильтры
     if apply_filters():
-        # Проверяем таблицу на соответствие выбранному АО
         table_valid, row_count = check_table_for_ao(selected_ao_value)
 
         if table_valid and row_count > 0:
-            print(f"Таблица проверена успешно!")
-            print(f"   Найдено строк: {row_count}")
-            print(f"   Все строки соответствуют АО: '{selected_ao_value}'")
+            print(f"\n✓ Таблица проверена успешно!")
+            print(f"   • Найдено строк: {row_count}")
+            print(f"   • Все строки соответствуют АО: '{selected_ao_value}'")
         else:
             if row_count == 0:
                 add_error(f"Таблица пуста после применения фильтра с АО: '{selected_ao_value}'")
@@ -1397,78 +1035,65 @@ if success and selected_ao_value:
     else:
         add_error("Не удалось применить фильтры")
 else:
-    add_error(f"Не удалось выбрать АО для проверки: {error_reason}")
+    add_error("Не удалось выбрать АО для проверки")
 
-# 10. СБРОС ФИЛЬТРОВ В КОНЦЕ
+# 9. ФИНАЛЬНЫЙ СБРОС ФИЛЬТРОВ
+print("\n" + "=" * 50)
+print("ШАГ 9: ФИНАЛЬНЫЙ СБРОС ФИЛЬТРОВ")
 print("=" * 50)
-print("ШАГ 10: СБРОС ФИЛЬТРОВ В КОНЦЕ")
-print("=" * 50)
 
-reset_clicked_final = False
+# Открываем фильтр если закрыт
+click_svg_element(FILTER_SELECTOR, "Открыть фильтр")
+time.sleep(1)
 
-for attempt in range(max_attempts):
-    if click_svg_element(RESET_SELECTOR, f"Сбросить фильтры (финальный сброс, попытка {attempt + 1})"):
-        reset_clicked_final = True
-        break
-    else:
-        time.sleep(0.5)
-
-if not reset_clicked_final:
-    # Не добавляем ошибку, так как фильтр может быть уже сброшен или не открыт
-    print("Кнопка сброса не найдена (фильтр может быть закрыт или уже сброшен)")
-else:
-    print("Фильтры сброшены (финальный сброс)")
-
-# Проверяем сброс полей в конце
-if reset_clicked_final:
+reset_final = reset_filters()
+if reset_final:
     time.sleep(1)
-    not_emptied_final = check_fields_emptiness(field_configs)
+    not_emptied_final = check_fields_emptiness()
     if not_emptied_final:
-        print(f"ВНИМАНИЕ! После финального сброса не сбросились ({len(not_emptied_final)}):")
+        print(f"\nВНИМАНИЕ! После финального сброса не сбросились ({len(not_emptied_final)}):")
         for field_info in not_emptied_final:
-            print(f"  {field_info['field']}: {field_info['value']}")
+            print(f"  • {field_info}")
     else:
-        print("Все поля сброшены (финальная проверка)")
+        print("\n✓ Все поля сброшены (финальная проверка)")
 
-# 11. ОЖИДАНИЕ ЗАГРУЗКИ ПОСЛЕ СБРОСА
-print("=" * 50)
-print("ШАГ 11: ОЖИДАНИЕ ЗАГРУЗКИ ДАННЫХ ПОСЛЕ СБРОСА")
+# 10. ОЖИДАНИЕ ЗАГРУЗКИ ПОСЛЕ СБРОСА
+print("\n" + "=" * 50)
+print("ШАГ 10: ОЖИДАНИЕ ЗАГРУЗКИ ДАННЫХ ПОСЛЕ СБРОСА")
 print("=" * 50)
 
 load_duration_after_reset = wait_for_page_load()
 
-# 12. ФИНАЛЬНЫЙ ОТЧЕТ
-print("=" * 60)
+# 11. ФИНАЛЬНЫЙ ОТЧЕТ
+print("\n" + "=" * 60)
 print("ИТОГОВЫЙ ОТЧЕТ")
 print("=" * 60)
 
-print(f"Раздел: {section_name}")
+print(f"\nРаздел: {section_name}")
 print(f"URL: {section_url}")
-print(f"Время загрузки после сброса: {load_duration:.1f} сек")
+print(f"Время загрузки после первого сброса: {load_duration:.1f} сек")
 print(f"Время загрузки после финального сброса: {load_duration_after_reset:.1f} сек")
 
-print(f"Результаты обработки полей:")
-for config in field_configs:
-    field_name = config["name"]
-    status = results.get(field_name, False)
-    print(f"  {' ' if status else ' '} {field_name}")
+print(f"\nРезультаты обработки полей:")
+for field_name, status in results.items():
+    print(f"  {'✓' if status else '✗'} {field_name}")
 
-# Вывод чекбокса Патрубок
-if "Патрубок" in results:
-    print(f"  {' ' if results['Патрубок'] else ' '} Патрубок (чекбокс)")
-
-
+# Вывод пропущенных полей
+if skipped_fields:
+    print(f"\nПропущенные поля ({len(skipped_fields)}):")
+    for skipped in skipped_fields:
+        print(f"  • {skipped['field']}: {skipped['reason']}")
 
 if selected_ao_value:
-    print(f"Проверка фильтрации по АО:")
+    print(f"\nПроверка фильтрации по АО:")
     print(f"  Выбранное АО: '{selected_ao_value}'")
     if 'table_valid' in locals() and 'row_count' in locals():
         if table_valid and row_count > 0:
-            print(f"  Статус: УСПЕШНО")
+            print(f"  Статус: УСПЕШНО ✓")
             print(f"  Количество строк в таблице: {row_count}")
             print(f"  Все строки соответствуют выбранному АО")
         else:
-            print(f"  Статус: ПРОВАЛЕН")
+            print(f"  Статус: ПРОВАЛЕН ✗")
             if row_count == 0:
                 print(f"  Причина: Таблица пуста")
             else:
@@ -1476,24 +1101,23 @@ if selected_ao_value:
     else:
         print(f"  Статус: ПРОВЕРКА НЕ ВЫПОЛНЕНА")
 
-print(f"Итог проверки фильтрации:")
+print(f"\nИтог проверки фильтрации:")
 if section_errors:
     print(f"Найдено ошибок: {len(section_errors)}")
-    print("Список ошибок:")
+    print("\nСписок ошибок:")
     for i, error in enumerate(section_errors, 1):
         print(f"  {i}. {error}")
 else:
-    print(f"Все шаги выполнены успешно!")
-    print("Раздел работает корректно")
-    print("Фильтрация по АО работает корректно")
+    print(f"✓ Все шаги выполнены успешно!")
+    print("  Раздел работает корректно")
+    print("  Фильтрация по АО работает корректно")
 
-print(f"{'=' * 60}")
+print(f"\n{'=' * 60}")
 
 # Закрытие браузера
 try:
-    #input()
     print("Закрытие браузера...")
     driver.quit()
     print("Браузер успешно закрыт")
 except Exception as e:
-    print(f"Не удалось закрыть браузера: {e}")
+    print(f"Не удалось закрыть браузер: {e}")
