@@ -1,3 +1,33 @@
+"""
+ТЕСТОВЫЙ КЕЙС: Реестр водомеров - Отправка объемов за период
+
+ЦЕЛЬ: Проверка функциональности отправки объемов за период в разделе "Реестр водомеров"
+
+ОПИСАНИЕ ТЕСТА:
+1. Авторизация в системе под пользователем predbill
+2. Переход в раздел "Реестр водомеров"
+3. Открытие фильтра и сброс перед заполнением
+4. Применение фильтров (без дополнительных настроек)
+5. Отметка первых трех ведомостей
+6. Выбор опции "Отправка объемов за период" из меню действий
+7. Выбор случайной даты в календаре
+8. Сохранение и проверка успешности операции
+
+ОЖИДАЕМЫЙ РЕЗУЛЬТАТ:
+- Фильтры корректно применяются
+- Ведомости успешно отмечаются
+- Опция "Отправка объемов за период" доступна и выбирается
+- Календарь работает корректно, выбирается случайная дата
+- Операция сохранения выполняется успешно
+- Отсутствие ошибок в процессе выполнения теста
+
+ОСОБЕННОСТИ:
+- Используется универсальная функция поиска полей по тексту лейбла
+- Рандомный выбор даты из доступных месяцев
+- Подробное логирование каждого шага с цветовым выделением
+- Обработка ошибок на каждом этапе
+"""
+
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -13,6 +43,8 @@ import random
 # Глобальные переменные
 saved_selected_addresses = []
 table_selector = "#root > section > section > main > form > div > div > div > div > div > div.BaseTable__table.BaseTable__table-main > div.BaseTable__body"
+section_errors = []
+selected_ao_value = None
 
 # Инициализация драйвера
 service = Service(ChromeDriverManager().install())
@@ -24,13 +56,12 @@ wait = WebDriverWait(driver, 60)
 from config import USERNAME, PASSWORD
 URL = 'http://10.5.121.74/login'
 
-# Хранение ошибок
-section_errors = []
-
 print("=" * 60)
 print("ТЕСТ РАЗДЕЛА: Реестр водомеров - Отправка объемов за период")
 print("=" * 60)
 
+
+# ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
 
 def add_error(error_text):
     if error_text not in section_errors:
@@ -167,58 +198,123 @@ def click_svg_element(svg_selector, action_name):
         return False
 
 
-def apply_filters():
+# ===================== УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ПОИСКА ПОЛЕЙ =====================
+
+def find_field_by_label(label_text, action_type="select", value=None, select_all=False):
+    """
+    УНИВЕРСАЛЬНАЯ ФУНКЦИЯ: ищет поле по тексту лейбла
+    """
     try:
-        print("Применяем фильтры...")
+        print(f"\nИщем поле с лейблом: '{label_text}'")
 
-        apply_button_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > div > div.filterOperations > button:nth-child(1) > span > svg"
+        label_xpath = f"//label[contains(text(), '{label_text}')]"
+        label = wait.until(EC.presence_of_element_located((By.XPATH, label_xpath)))
+        print(f"  Лейбл найден")
 
-        apply_svg = wait.until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, apply_button_selector))
-        )
+        row = label.find_element(By.XPATH, "./ancestor::div[contains(@class, 'ant-row')]")
 
-        parent_button = apply_svg.find_element(By.XPATH, "..")
-        parent_button.click()
-        print("Фильтры применены")
-
-        wait_for_page_load()
-        check_and_close_errors("После применения фильтров")
-
-        return True
-
-    except Exception as e:
-        add_error(f"Ошибка при применении фильтров: {e}")
-        return False
-
-
-def clear_all_checkboxes():
-    try:
-        print("Снимаем отметки со всех ведомостей...")
-        table_body = driver.find_element(By.CSS_SELECTOR, table_selector)
-        rows = table_body.find_elements(By.CSS_SELECTOR, "div.BaseTable__row")
-
-        unchecked_count = 0
-        for i, row in enumerate(rows):
+        if action_type == "input":
             try:
-                checkbox = row.find_element(By.CSS_SELECTOR, "input[type='checkbox']")
-                if checkbox.is_selected():
-                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", checkbox)
-                    time.sleep(0.2)
-                    checkbox.click()
-                    unchecked_count += 1
+                element = row.find_element(By.CSS_SELECTOR, "input")
+                print(f"  Нашли input поле")
             except:
-                continue
+                print(f"  Не нашли input поле")
+                return False
 
-        if unchecked_count > 0:
-            print(f"Снято отметок: {unchecked_count}")
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+            time.sleep(0.5)
 
-        check_and_close_errors("После снятия отметок")
+            element.click()
+            time.sleep(0.3)
+            element.clear()
+            time.sleep(0.3)
+            element.send_keys(value)
+            print(f"  Ввели значение: {value}")
+            time.sleep(0.5)
+            return True
 
-        return True
+        else:
+            try:
+                element = row.find_element(By.CSS_SELECTOR, "div.ant-select-selector")
+            except:
+                try:
+                    element = row.find_element(By.CSS_SELECTOR, "div.ant-col.ant-col-14 > div > div > div")
+                except:
+                    print(f"  Не нашли кликабельный элемент")
+                    return False
+
+            print(f"  Нашли выпадающий список")
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+            time.sleep(0.5)
+            element.click()
+            print(f"  Открыли выпадающий список")
+            time.sleep(1)
+
+            dropdown_selector = ".ant-select-dropdown:not(.ant-select-dropdown-hidden)"
+            dropdown = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, dropdown_selector)))
+            options = dropdown.find_elements(By.CSS_SELECTOR, ".ant-select-item-option")
+            print(f"  Найдено опций: {len(options)}")
+
+            if not options:
+                print(f"  Список пуст")
+                return False
+
+            if select_all:
+                for option in options:
+                    try:
+                        option_text = option.text.strip()
+                        if "Выбрать все" in option_text:
+                            option.click()
+                            print(f"  Выбрали 'Выбрать все'")
+                            time.sleep(0.5)
+                            return True
+                    except:
+                        continue
+                print(f"  'Выбрать все' не найдено")
+                return False
+            else:
+                valid_options = []
+                for option in options:
+                    try:
+                        option_text = option.text.strip()
+                        # Для статусов используем специальную логику (если понадобится)
+                        if label_text == "Статус ведомости":
+                            target_statuses = ["Не отправлена"]
+                            for target in target_statuses:
+                                if option_text == target and option not in valid_options:
+                                    valid_options.append(option)
+                                    print(f"  Найден нужный статус: '{option_text}'")
+                        else:
+                            if "Выбрать все" not in option_text and option_text:
+                                valid_options.append(option)
+                    except:
+                        continue
+
+                if not valid_options:
+                    print(f"  Нет доступных значений")
+                    return False
+
+                # Выбираем все найденные опции
+                selected_count = 0
+                for option in valid_options:
+                    try:
+                        option.click()
+                        selected_count += 1
+                        time.sleep(0.3)
+                    except:
+                        continue
+
+                print(f"  Выбрано опций: {selected_count}")
+                time.sleep(0.5)
+
+                return True if selected_count > 0 else False
+
     except Exception as e:
-        print(f"Ошибка при снятии отметок: {e}")
+        print(f"Ошибка при обработке поля '{label_text}': {e}")
         return False
 
+
+# ===================== ФУНКЦИИ ДЛЯ РАБОТЫ С ТАБЛИЦЕЙ =====================
 
 def mark_first_three_checkboxes():
     try:
@@ -277,6 +373,37 @@ def mark_first_three_checkboxes():
         add_error(f"Ошибка при отметке ведомостей: {e}")
         return False
 
+
+def clear_all_checkboxes():
+    try:
+        print("Снимаем отметки со всех ведомостей...")
+        table_body = driver.find_element(By.CSS_SELECTOR, table_selector)
+        rows = table_body.find_elements(By.CSS_SELECTOR, "div.BaseTable__row")
+
+        unchecked_count = 0
+        for i, row in enumerate(rows):
+            try:
+                checkbox = row.find_element(By.CSS_SELECTOR, "input[type='checkbox']")
+                if checkbox.is_selected():
+                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", checkbox)
+                    time.sleep(0.2)
+                    checkbox.click()
+                    unchecked_count += 1
+            except:
+                continue
+
+        if unchecked_count > 0:
+            print(f"Снято отметок: {unchecked_count}")
+
+        check_and_close_errors("После снятия отметок")
+
+        return True
+    except Exception as e:
+        print(f"Ошибка при снятии отметок: {e}")
+        return False
+
+
+# ===================== ФУНКЦИИ ДЛЯ РАБОТЫ С ДЕЙСТВИЯМИ =====================
 
 def click_action_button():
     try:
@@ -570,11 +697,37 @@ def close_modal_if_open():
     return False
 
 
-print("\n" + "=" * 50)
-print("ШАГ 1: АВТОРИЗАЦИЯ")
-print("=" * 50)
+def apply_filters():
+    try:
+        print("Применяем фильтры...")
+
+        apply_button_selector = "button[section='watermeterStatements'] span[role='img'][aria-label='check']"
+
+        apply_svg = wait.until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, apply_button_selector))
+        )
+
+        parent_button = apply_svg.find_element(By.XPATH, "..")
+        parent_button.click()
+        print("Фильтры применены")
+
+        wait_for_page_load()
+        check_and_close_errors("После применения фильтров")
+
+        return True
+
+    except Exception as e:
+        add_error(f"Ошибка при применении фильтров: {e}")
+        return False
+
+
+# ===================== ОСНОВНОЙ КОД =====================
 
 try:
+    print("\n" + "=" * 50)
+    print("ШАГ 1: АВТОРИЗАЦИЯ")
+    print("=" * 50)
+
     driver.get(URL)
     username_field = wait.until(EC.presence_of_element_located((By.ID, "normal_login_username")))
     username_field.send_keys(USERNAME)
@@ -587,16 +740,10 @@ try:
 
     check_and_close_errors("После авторизации")
 
-except Exception as e:
-    add_error(f"Ошибка авторизации: {e}")
-    driver.quit()
-    exit()
+    print("\n" + "=" * 50)
+    print("ШАГ 2: ПЕРЕХОД В РАЗДЕЛ")
+    print("=" * 50)
 
-print("\n" + "=" * 50)
-print("ШАГ 2: ПЕРЕХОД В РАЗДЕЛ")
-print("=" * 50)
-
-try:
     section_url = 'http://10.5.121.74/commercialControl/watermeterStatements'
     driver.get(section_url)
     wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
@@ -605,119 +752,109 @@ try:
 
     check_and_close_errors("После перехода в раздел")
 
+    print("\n" + "=" * 50)
+    print("ШАГ 3: ОТКРЫТИЕ ФИЛЬТРА")
+    print("=" * 50)
+
+    if not click_svg_element("svg[data-icon='filter']", "Фильтр открыт"):
+        add_error("Не удалось открыть фильтр")
+
+    time.sleep(2)
+
+    print("\n" + "=" * 50)
+    print("ШАГ 4: СБРОС ФИЛЬТРОВ")
+    print("=" * 50)
+
+    if not click_svg_element("svg[data-icon='stop']", "Фильтры сброшены"):
+        print_warning("Не удалось сбросить фильтры")
+
+    time.sleep(1)
+
+    print("\n" + "=" * 50)
+    print("ШАГ 5: ПРИМЕНЕНИЕ ФИЛЬТРОВ")
+    print("=" * 50)
+
+    if not apply_filters():
+        add_error("Не удалось применить фильтры")
+
+    print("\n" + "=" * 50)
+    print("ШАГ 6: ОТМЕТКА ПЕРВЫХ ТРЕХ ВЕДОМОСТЕЙ")
+    print("=" * 50)
+
+    if not mark_first_three_checkboxes():
+        add_error("Не удалось отметить первые три ведомости")
+
+    print("\n" + "=" * 50)
+    print("ШАГ 7: КЛИК НА КНОПКУ 'ДЕЙСТВИЕ'")
+    print("=" * 50)
+
+    if not click_action_button():
+        add_error("Не удалось нажать кнопку 'Действие'")
+
+    print("\n" + "=" * 50)
+    print("ШАГ 8: ВЫБОР ОПЦИИ 'ОТПРАВКА ОБЪЕМОВ ЗА ПЕРИОД'")
+    print("=" * 50)
+
+    if not select_volume_sending_option():
+        add_error("Не удалось выбрать опцию 'Отправка объемов за период'")
+        close_modal_if_open()
+
+    print("\n" + "=" * 50)
+    print("ШАГ 9: ВЫБОР РАНДОМНОЙ ДАТЫ В КАЛЕНДАРЕ")
+    print("=" * 50)
+
+    if not select_random_date():
+        add_error("Не удалось выбрать рандомную дату")
+        close_modal_if_open()
+
+    print("\n" + "=" * 50)
+    print("ШАГ 10: НАЖАТИЕ КНОПКИ 'СОХРАНИТЬ'")
+    print("=" * 50)
+
+    if not click_save_button_in_modal():
+        add_error("Не удалось нажать кнопку 'Сохранить'")
+        close_modal_if_open()
+
+    print("\n" + "=" * 50)
+    print("ШАГ 11: ПРОВЕРКА УСПЕШНОСТИ ОПЕРАЦИИ")
+    print("=" * 50)
+
+    operation_success = check_operation_success()
+
+    print("\n" + "=" * 60)
+    print("ИТОГОВЫЙ ОТЧЕТ ПО ОТПРАВКЕ ОБЪЕМОВ ЗА ПЕРИОД")
+    print("=" * 60)
+
+    if operation_success:
+        print_success("Операция отправки объемов за период выполнена успешно")
+    else:
+        add_error("Операция отправки объемов за период не завершена успешно")
+        print_warning("Операция отправки объемов за период не завершена успешно")
+
+    if section_errors:
+        print(f"\n\033[91mНайдено ошибок: {len(section_errors)}\033[0m")
+        for i, error in enumerate(section_errors, 1):
+            print(f"\033[91m  {i}. {error}\033[0m")
+    else:
+        print(f"\n\033[92mОшибок не обнаружено\033[0m")
+
+    print("\n" + "=" * 60)
+    if operation_success and len(section_errors) == 0:
+        print_success("ТЕСТ ОТПРАВКИ ОБЪЕМОВ ЗА ПЕРИОД УСПЕШНО ЗАВЕРШЕН")
+    elif operation_success and len(section_errors) > 0:
+        print_warning("ТЕСТ ЗАВЕРШЕН С ОШИБКАМИ, НО ОПЕРАЦИЯ ВЫПОЛНЕНА")
+    else:
+        print("\033[91mТЕСТ ЗАВЕРШЕН С ОШИБКАМИ, ОПЕРАЦИЯ НЕ ВЫПОЛНЕНА\033[0m")
+    print("=" * 60)
+
 except Exception as e:
-    add_error(f"Ошибка перехода в раздел: {e}")
+    add_error(f"Критическая ошибка в основном потоке: {e}")
+    print(f"\nТест прерван с ошибкой: {e}")
 
-print("\n" + "=" * 50)
-print("ШАГ 3: ОТКРЫТИЕ ФИЛЬТРА")
-print("=" * 50)
-
-if not click_svg_element("svg[data-icon='filter']", "Фильтр открыт"):
-    add_error("Не удалось открыть фильтр")
-
-time.sleep(2)
-
-print("\n" + "=" * 50)
-print("ШАГ 4: СБРОС ФИЛЬТРОВ")
-print("=" * 50)
-
-if not click_svg_element("svg[data-icon='stop']", "Фильтры сброшены"):
-    print_warning("Не удалось сбросить фильтры")
-
-time.sleep(1)
-
-print("\n" + "=" * 50)
-print("ШАГ 5: ПРИМЕНЕНИЕ ФИЛЬТРОВ")
-print("=" * 50)
-
-if not apply_filters():
-    add_error("Не удалось применить фильтры")
-    driver.quit()
-    exit()
-
-print("\n" + "=" * 50)
-print("ШАГ 6: ОТМЕТКА ПЕРВЫХ ТРЕХ ВЕДОМОСТЕЙ")
-print("=" * 50)
-
-if not mark_first_three_checkboxes():
-    add_error("Не удалось отметить первые три ведомости")
-    driver.quit()
-    exit()
-
-print("\n" + "=" * 50)
-print("ШАГ 7: КЛИК НА КНОПКУ 'ДЕЙСТВИЕ'")
-print("=" * 50)
-
-if not click_action_button():
-    add_error("Не удалось нажать кнопку 'Действие'")
-    driver.quit()
-    exit()
-
-print("\n" + "=" * 50)
-print("ШАГ 8: ВЫБОР ОПЦИИ 'ОТПРАВКА ОБЪЕМОВ ЗА ПЕРИОД'")
-print("=" * 50)
-
-if not select_volume_sending_option():
-    add_error("Не удалось выбрать опцию 'Отправка объемов за период'")
-    close_modal_if_open()
-    driver.quit()
-    exit()
-
-print("\n" + "=" * 50)
-print("ШАГ 9: ВЫБОР РАНДОМНОЙ ДАТЫ В КАЛЕНДАРЕ")
-print("=" * 50)
-
-if not select_random_date():
-    add_error("Не удалось выбрать рандомную дату")
-    close_modal_if_open()
-    driver.quit()
-    exit()
-
-print("\n" + "=" * 50)
-print("ШАГ 10: НАЖАТИЕ КНОПКИ 'СОХРАНИТЬ'")
-print("=" * 50)
-
-if not click_save_button_in_modal():
-    add_error("Не удалось нажать кнопку 'Сохранить'")
-    close_modal_if_open()
-
-print("\n" + "=" * 50)
-print("ШАГ 11: ПРОВЕРКА УСПЕШНОСТИ ОПЕРАЦИИ")
-print("=" * 50)
-
-operation_success = check_operation_success()
-
-print("\n" + "=" * 60)
-print("ИТОГОВЫЙ ОТЧЕТ ПО ОТПРАВКЕ ОБЪЕМОВ ЗА ПЕРИОД")
-print("=" * 60)
-
-if operation_success:
-    print_success("Операция отправки объемов за период выполнена успешно")
-else:
-    add_error("Операция отправки объемов за период не завершена успешно")
-    print_warning("Операция отправки объемов за период не завершена успешно")
-
-if section_errors:
-    print(f"\n\033[91mНайдено ошибок: {len(section_errors)}\033[0m")
-    for i, error in enumerate(section_errors, 1):
-        print(f"\033[91m  {i}. {error}\033[0m")
-else:
-    print(f"\n\033[92mОшибок не обнаружено\033[0m")
-
-print("\n" + "=" * 60)
-if operation_success and len(section_errors) == 0:
-    print_success("ТЕСТ ОТПРАВКИ ОБЪЕМОВ ЗА ПЕРИОД УСПЕШНО ЗАВЕРШЕН")
-elif operation_success and len(section_errors) > 0:
-    print_warning("ТЕСТ ЗАВЕРШЕН С ОШИБКАМИ, НО ОПЕРАЦИЯ ВЫПОЛНЕНА")
-else:
-    print("\033[91mТЕСТ ЗАВЕРШЕН С ОШИБКАМИ, ОПЕРАЦИЯ НЕ ВЫПОЛНЕНА\033[0m")
-print("=" * 60)
-
-
-
-try:
-    print("\nЗакрытие браузера...")
-    driver.quit()
-    print("Браузер успешно закрыт")
-except Exception as e:
-    print(f"Не удалось закрыть браузер: {e}")
+finally:
+    try:
+        print("\nЗакрытие браузера...")
+        driver.quit()
+        print("Браузер успешно закрыт")
+    except Exception as e:
+        print(f"Не удалось закрыть браузер: {e}")

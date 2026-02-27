@@ -170,7 +170,7 @@ def apply_filters():
     try:
         print("Применяем фильтры...")
 
-        apply_button_selector = "body > div:nth-child(3) > div > div.ant-drawer-content-wrapper > div > div > div > div > div.filterOperations > button:nth-child(1) > span > svg"
+        apply_button_selector = "button[section='billingStatements'] span[role='img'][aria-label='check']"
 
         apply_svg = wait.until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, apply_button_selector))
