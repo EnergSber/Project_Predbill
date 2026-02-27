@@ -12,4 +12,4 @@ PASSWORD = os.getenv('UI_PASSWORD')
 
 # Проверяем что они есть
 if not USERNAME or not PASSWORD:
-    raise ValueError("❌ UI_USERNAME и UI_PASSWORD должны быть в .env файле")
+    raise ValueError("❌  UI_USERNAME и UI_PASSWORD должны быть в .env файле")
