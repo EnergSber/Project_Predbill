@@ -45,10 +45,9 @@ print("=" * 60)
 print("Запуск")
 print("=" * 60)
 
-# Креды
+# Данные для авторизации
+from config import USERNAME, PASSWORD
 URL = 'http://10.5.121.74/login'
-USERNAME = 'predbill'
-PASSWORD = 'predbill'
 
 # Глобальные селекторы (одинаковые для всех разделов)
 FILTER_SELECTOR = "svg[data-icon='filter']"

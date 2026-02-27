@@ -50,9 +50,8 @@ driver.maximize_window()
 wait = WebDriverWait(driver, 60)
 
 # Данные для авторизации
+from config import USERNAME, PASSWORD
 URL = 'http://10.5.121.74/login'
-USERNAME = 'predbill'
-PASSWORD = 'predbill'
 
 # ============================================
 # СЕЛЕКТОРЫ

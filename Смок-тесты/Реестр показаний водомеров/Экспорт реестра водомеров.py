@@ -105,9 +105,8 @@ driver.maximize_window()
 wait = WebDriverWait(driver, 30)
 
 # Данные для авторизации
+from config import USERNAME, PASSWORD
 URL = 'http://10.5.121.74/login'
-USERNAME = 'predbill'
-PASSWORD = 'predbill'
 
 # Селекторы для раздела
 SECTION_URL = 'http://10.5.121.74/commercialControl/watermeterStatements'

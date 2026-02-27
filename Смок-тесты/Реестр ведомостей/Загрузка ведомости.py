@@ -196,9 +196,9 @@ except Exception as e:
 driver.maximize_window()
 wait = WebDriverWait(driver, 20)
 
+# Данные для авторизации
+from config import USERNAME, PASSWORD
 URL = 'http://10.5.121.74/login'
-USERNAME = 'predbill'
-PASSWORD = 'predbill'
 
 print("\n" + "=" * 60)
 print("1. АВТОРИЗАЦИЯ В СИСТЕМЕ")
