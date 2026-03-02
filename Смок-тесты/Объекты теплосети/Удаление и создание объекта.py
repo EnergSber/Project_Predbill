@@ -11,9 +11,10 @@
    - Ввод адреса (только для первого типа, потом адрес сохраняется)
    - Получение строк таблицы
    - Клик по каждой строке (с ожиданием 1 сек)
+   - Проверка, что адрес в строке совпадает с введенным
    - Проверка активности кнопки "Сохранить"
-6. Если на каком-то типе кнопка стала активной - сохраняем объект
-7. Если после всех трех типов кнопка так и не стала активной - выводим ошибку
+6. Если на каком-то типе кнопка стала активной и адрес совпадает - сохраняем объект
+7. Если после всех трех типов кнопка так и не стала активной или адреса не совпадают - выводим ошибку
 """
 
 from selenium import webdriver
@@ -65,7 +66,9 @@ TYPE_SELECTOR = "#saveAccountingObjectModalForm_typeCode"  # Поле ввода
 TYPE_DROPDOWN = ".ant-select-dropdown"  # Выпадающий список
 TYPE_OPTION = ".ant-select-item-option"  # Опция в списке
 ADDRESS_INPUT = "#saveAccountingObjectModalForm_address"  # Поле ввода адреса
+TABLE_CONTAINER = "#saveAccountingObjectModalForm > div.rt-form-body > div.rt-table.addAccountingTable > div"  # Контейнер таблицы
 TABLE_ROWS = "#saveAccountingObjectModalForm > div.rt-form-body > div.rt-table.addAccountingTable .BaseTable__row"  # Строки таблицы
+TABLE_CELL_ADDRESS = "div.BaseTable__row-cell:nth-child(1) .textEllipsis"  # Ячейка с адресом (первый столбец)
 SAVE_BUTTON = "#saveAccountingObjectModalForm > div.rt-form-footer > button.ant-btn.ant-btn-primary"  # Кнопка сохранить
 INFO_TEXT = "#saveAccountingObjectModalForm > div.rt-form-body > div.checkAndInfoArea span"  # Информационный текст
 
@@ -98,7 +101,8 @@ test_results = {
     "save_success": False,
     "final_type": None,
     "save_button_active_on_row": None,
-    "rows_per_type": {}  # Для хранения количества строк для каждого типа
+    "rows_per_type": {},  # Для хранения количества строк для каждого типа
+    "address_matches": {}  # Для хранения результатов проверки адресов
 }
 
 
@@ -531,6 +535,47 @@ def get_table_rows():
         return []
 
 
+def get_address_from_row(row):
+    """Получает адрес из строки таблицы"""
+    try:
+        # Ищем ячейку с адресом (первый столбец)
+        address_cell = row.find_element(By.CSS_SELECTOR, TABLE_CELL_ADDRESS)
+        address_text = address_cell.text.strip()
+        return address_text
+    except:
+        # Если не нашли по специальному селектору, пробуем получить текст всей строки
+        try:
+            full_text = row.text
+            # Предполагаем, что адрес - это первая строка или часть текста
+            lines = full_text.split('\n')
+            if lines:
+                return lines[0].strip()
+        except:
+            pass
+    return None
+
+
+def check_address_match(row, expected_address, row_index):
+    """Проверяет, совпадает ли адрес в строке с ожидаемым"""
+    global current_action_context
+    current_action_context = f"Проверка адреса в строке {row_index}"
+
+    row_address = get_address_from_row(row)
+
+    if not row_address:
+        print(f"✗ Не удалось получить адрес из строки {row_index}")
+        return False
+
+    if expected_address in row_address or row_address in expected_address:
+        print(f"✓ Адрес в строке {row_index} совпадает: '{row_address}'")
+        return True
+    else:
+        print(f"✗ Адрес в строке {row_index} НЕ совпадает:")
+        print(f"   Ожидаемый: '{expected_address}'")
+        print(f"   Фактический: '{row_address}'")
+        return False
+
+
 def click_table_row(row, row_index):
     """Кликает на конкретную строку таблицы"""
     global current_action_context
@@ -741,10 +786,15 @@ for type_index, object_type in enumerate(OBJECT_TYPES, 1):
         })
         continue
 
-    # 6.4. Последовательно кликаем по каждой строке и проверяем кнопку
+    # 6.4. Последовательно кликаем по каждой строке и проверяем адрес и кнопку
     row_clicked_success = False
     for i, row in enumerate(rows, 1):
         print(f"\n  --- Строка {i} из {len(rows)} ---")
+
+        # Проверяем, что адрес в строке совпадает с введенным
+        if not check_address_match(row, test_results["deleted_address"], i):
+            print(f"  ⚠ Пропускаем строку {i} - адрес не совпадает")
+            continue
 
         # Кликаем на строку
         if not click_table_row(row, i):
@@ -762,12 +812,14 @@ for type_index, object_type in enumerate(OBJECT_TYPES, 1):
             print(f"\n✓ КНОПКА 'СОХРАНИТЬ' СТАЛА АКТИВНОЙ!")
             print(f"   Тип: '{object_type}'")
             print(f"   Строка: {i}")
+            print(f"   Адрес в строке совпадает с введенным")
 
             # Сохраняем успешную попытку
             test_results["type_attempts"].append({
                 "type": object_type,
                 "success": True,
-                "row": i
+                "row": i,
+                "address_matched": True
             })
             break
         else:
@@ -775,15 +827,15 @@ for type_index, object_type in enumerate(OBJECT_TYPES, 1):
 
     # Если кнопка стала активной - сохраняем и выходим
     if save_button_enabled:
-        print(f"\n✓ Найден подходящий тип: '{selected_type}' на строке {active_row}")
+        print(f"\n✓ Найден подходящий тип: '{selected_type}' на строке {active_row} с совпадающим адресом")
         break
 
-    # Если не удалось кликнуть ни на одну строку
+    # Если не удалось кликнуть ни на одну строку с совпадающим адресом
     if not row_clicked_success:
         test_results["type_attempts"].append({
             "type": object_type,
             "success": False,
-            "error": "Не удалось кликнуть на строки таблицы"
+            "error": "Не найдено строк с совпадающим адресом или не удалось кликнуть"
         })
 
     print(f"\n--- Тип '{object_type}' не подошел, переходим к следующему ---")
@@ -794,7 +846,7 @@ print("ШАГ 7: СОХРАНЕНИЕ ОБЪЕКТА")
 print("=" * 50)
 
 if save_button_enabled and selected_type:
-    print(f"✓ Кнопка активна на типе '{selected_type}', строка {active_row}")
+    print(f"✓ Кнопка активна на типе '{selected_type}', строка {active_row} (адрес совпадает)")
     if click_save():
         print(f"✓ Объект успешно сохранен с типом '{selected_type}'")
     else:
@@ -829,6 +881,7 @@ for i, attempt in enumerate(test_results["type_attempts"], 1):
     print(f"  {i}. {status} {attempt['type']}")
     if attempt.get("success") and "row" in attempt:
         print(f"     ✓ Активна на строке: {attempt['row']}")
+        print(f"     ✓ Адрес совпадает")
     if not attempt.get("success") and "error" in attempt:
         print(f"     ✗ Ошибка: {attempt['error']}")
 
@@ -839,6 +892,7 @@ for type_name, row_count in test_results["rows_per_type"].items():
 if test_results['final_type']:
     print(f"\nИТОГОВЫЙ ТИП: {test_results['final_type']}")
     print(f"Кнопка стала активна на строке: {test_results['save_button_active_on_row']}")
+    print(f"Адрес в строке совпадает с введенным")
 else:
     print(f"\nИТОГОВЫЙ ТИП: Не выбран (ни один тип не подошел)")
 
@@ -865,6 +919,7 @@ test_passed = test_results["save_success"]
 if test_passed:
     print("✓ ТЕСТ ПРОЙДЕН УСПЕШНО!")
     print(f"  Объект сохранен с типом '{test_results['final_type']}' на строке {test_results['save_button_active_on_row']}")
+    print(f"  Адрес в строке совпадает с введенным: '{test_results['deleted_address']}'")
 else:
     print("✗ ТЕСТ НЕ ПРОЙДЕН - объект не сохранен ни с одним из трех типов")
 
