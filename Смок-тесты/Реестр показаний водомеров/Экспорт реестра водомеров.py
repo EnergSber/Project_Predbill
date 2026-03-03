@@ -844,9 +844,38 @@ except Exception as e:
     driver.quit()
     exit()
 
-# 3. ЭКСПОРТ ПО ВЫДЕЛЕННЫМ
+# 3. ОТКРЫТИЕ ФИЛЬТРА, СБРОС И ПРИМЕНЕНИЕ ПЕРЕД ВЫДЕЛЕНИЕМ ЗАПИСЕЙ
 print("\n" + "="*50)
-print("ШАГ 3: ЭКСПОРТ ПО ВЫДЕЛЕННЫМ")
+print("ШАГ 3: ОТКРЫТИЕ ФИЛЬТРА, СБРОС И ПРИМЕНЕНИЕ")
+print("="*50)
+
+print("Открытие фильтра...")
+if click_svg_element(FILTER_OPEN_SELECTOR, "Открыть фильтр", "ОТКРЫТИЕ ФИЛЬТРА"):
+    print("Фильтр открыт")
+    time.sleep(2)
+    smart_wait_for_errors_disappear()
+else:
+    add_error_with_context("Не удалось открыть фильтр", "ОТКРЫТИЕ ФИЛЬТРА")
+
+# Нажимаем кнопку сброса
+if click_reset_button("СБРОС ФИЛЬТРА"):
+    print("Фильтр сброшен")
+    time.sleep(2)
+    smart_wait_for_errors_disappear()
+else:
+    add_error_with_context("Не удалось сбросить фильтр", "СБРОС ФИЛЬТРА")
+
+# Применяем фильтр (чтобы закрыть его и применить пустые значения)
+if apply_filter("ПРИМЕНЕНИЕ ФИЛЬТРА ПОСЛЕ СБРОСА"):
+    print("Фильтр применен (закрыт)")
+    wait_for_page_load("После применения фильтра")
+    smart_wait_for_errors_disappear()
+else:
+    add_error_with_context("Не удалось применить фильтр после сброса", "ПРИМЕНЕНИЕ ФИЛЬТРА")
+
+# 4. ЭКСПОРТ ПО ВЫДЕЛЕННЫМ
+print("\n" + "="*50)
+print("ШАГ 4: ЭКСПОРТ ПО ВЫДЕЛЕННЫМ")
 print("="*50)
 
 if select_all_records("ВЫБОР ВСЕХ ЗАПИСЕЙ"):
@@ -867,9 +896,9 @@ if os.path.exists(DOWNLOAD_FOLDER):
             except:
                 pass
 
-# 4. РАБОТА С ФИЛЬТРОМ
+# 5. РАБОТА С ФИЛЬТРОМ
 print("\n" + "="*50)
-print("ШАГ 4: РАБОТА С ФИЛЬТРОМ")
+print("ШАГ 5: РАБОТА С ФИЛЬТРОМ")
 print("="*50)
 
 print("Открытие фильтра...")
@@ -880,27 +909,27 @@ if click_svg_element(FILTER_OPEN_SELECTOR, "Открыть фильтр", "ОТ�
 else:
     add_error_with_context("Не удалось открыть фильтр", "ОТКРЫТИЕ ФИЛЬТРА")
 
-# 4.1. Нажимаем кнопку сброса
+# 5.1. Нажимаем кнопку сброса
 click_reset_button("СБРОС ФИЛЬТРА")
 
 # Проверяем ошибки после сброса
 smart_wait_for_errors_disappear()
 time.sleep(1)
 
-# 4.2. Выбираем случайное АО
+# 5.2. Выбираем случайное АО
 ao_success, ao_value = select_random_ao("ВЫБОР СЛУЧАЙНОГО АО")
 if ao_success:
     print(f"АО выбрано успешно: '{ao_value}'")
 
-    # 4.3. Применяем фильтр
+    # 5.3. Применяем фильтр
     if apply_filter("ПРИМЕНЕНИЕ ФИЛЬТРА"):
         print("Фильтр применен успешно")
         smart_wait_for_errors_disappear()
         wait_for_page_load("После применения фильтра")
 
-        # 5. ЭКСПОРТ ПО ФИЛЬТРУ
+        # 6. ЭКСПОРТ ПО ФИЛЬТРУ
         print("\n" + "="*50)
-        print("ШАГ 5: ЭКСПОРТ ПО ФИЛЬТРУ")
+        print("ШАГ 6: ЭКСПОРТ ПО ФИЛЬТРУ")
         print("="*50)
 
         result_filter = perform_export_flow("filter", "ЭКСПОРТ ПО ФИЛЬТРУ")
@@ -913,7 +942,7 @@ if ao_success:
 else:
     add_error_with_context("Не удалось выбрать АО в фильтре", "ВЫБОР АО В ФИЛЬТРЕ")
 
-# 6. ИТОГОВЫЙ ОТЧЕТ
+# 7. ИТОГОВЫЙ ОТЧЕТ
 print("\n" + "="*80)
 print("ИТОГОВЫЙ ОТЧЕТ ПО ТЕСТИРОВАНИЮ")
 print("="*80)
