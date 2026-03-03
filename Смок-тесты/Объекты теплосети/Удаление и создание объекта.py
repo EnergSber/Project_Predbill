@@ -5,16 +5,17 @@
 1. Авторизация в системе
 2. Переход в раздел "Объекты теплосети"
 3. Выбор случайного объекта и его удаление
-4. Создание нового объекта с тем же адресом
-5. Для КАЖДОГО из трех типов (Тепловой пункт, Присоединенное строение, Источник теплоснабжения):
+4. После удаления: ожидание загрузки и двойной клик по общему чекбоксу
+5. Создание нового объекта с тем же адресом
+6. Для КАЖДОГО из трех типов (Тепловой пункт, Присоединенное строение, Источник теплоснабжения):
    - Выбор типа по индексу (1, 2, 3)
    - Ввод адреса (только для первого типа, потом адрес сохраняется)
    - Получение строк таблицы
    - Клик по каждой строке (с ожиданием 1 сек)
    - Проверка, что адрес в строке совпадает с введенным
    - Проверка активности кнопки "Сохранить"
-6. Если на каком-то типе кнопка стала активной и адрес совпадает - сохраняем объект
-7. Если после всех трех типов кнопка так и не стала активной - выводим ошибку
+7. Если на каком-то типе кнопка стала активной и адрес совпадает - сохраняем объект
+8. Если после всех трех типов кнопка так и не стала активной - выводим ошибку
 """
 
 from selenium import webdriver
@@ -49,6 +50,9 @@ APPLY_SELECTOR = "svg[data-icon='check']"
 
 # Селекторы для работы с объектами
 CHECKBOX_SELECTOR_TEMPLATE = "#root > section > section > main > form > div > div > div > div > div > div.BaseTable__table.BaseTable__table-main > div.BaseTable__body > div > div:nth-child({}) > div:nth-child(1) > label"
+
+# Общий чекбокс в заголовке таблицы (для снятия выделения)
+MAIN_CHECKBOX = "#root > section > section > main > form > div > div > div > div > div > div.BaseTable__table.BaseTable__table-main > div.BaseTable__header > div > div > div:nth-child(1) > label > span > input"
 
 # Селектор для меню действия (как в экспорте объектов)
 ACTION_MENU_SELECTOR = "#root > section > section > div > div.ant-space.ant-space-horizontal.ant-space-align-center > div > div > div > div > div > button > div > div:nth-child(1) > span > svg"
@@ -438,6 +442,38 @@ def delete_selected_object():
     return True
 
 
+def click_main_checkbox_twice():
+    """Кликает два раза на общий чекбокс с задержкой в полсекунды"""
+    global current_action_context
+    current_action_context = "Двойной клик на общий чекбокс"
+
+    try:
+        # Ждем появления чекбокса
+        checkbox = wait.until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, MAIN_CHECKBOX))
+        )
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", checkbox)
+        time.sleep(0.5)
+
+        # Первый клик
+        driver.execute_script("arguments[0].click();", checkbox)
+        print("✓ Первый клик на общий чекбокс")
+        time.sleep(0.5)
+
+        # Второй клик
+        driver.execute_script("arguments[0].click();", checkbox)
+        print("✓ Второй клик на общий чекбокс")
+        time.sleep(0.5)
+
+        smart_wait_for_errors_disappear()
+        return True
+
+    except Exception as e:
+        print(f"✗ Ошибка при клике на общий чекбокс: {e}")
+        smart_wait_for_errors_disappear()
+        return False
+
+
 def create_new_object():
     """Создает новый объект"""
     global current_action_context
@@ -712,9 +748,16 @@ if not delete_selected_object():
     driver.quit()
     exit()
 
-# 5. СОЗДАНИЕ НОВОГО ОБЪЕКТА
+# 5. ДВОЙНОЙ КЛИК НА ОБЩИЙ ЧЕКБОКС ПОСЛЕ УДАЛЕНИЯ
 print("\n" + "=" * 50)
-print("ШАГ 5: СОЗДАНИЕ НОВОГО ОБЪЕКТА")
+print("ШАГ 5: ДВОЙНОЙ КЛИК НА ОБЩИЙ ЧЕКБОКС")
+print("=" * 50)
+
+click_main_checkbox_twice()
+
+# 6. СОЗДАНИЕ НОВОГО ОБЪЕКТА
+print("\n" + "=" * 50)
+print("ШАГ 6: СОЗДАНИЕ НОВОГО ОБЪЕКТА")
 print("=" * 50)
 
 if not create_new_object():
@@ -725,9 +768,9 @@ if not create_new_object():
 # Выводим информационный текст
 info_text = get_info_text()
 
-# 6. ПОСЛЕДОВАТЕЛЬНЫЙ ПЕРЕБОР ВСЕХ ТРЕХ ТИПОВ ОБЪЕКТОВ
+# 7. ПОСЛЕДОВАТЕЛЬНЫЙ ПЕРЕБОР ВСЕХ ТРЕХ ТИПОВ ОБЪЕКТОВ
 print("\n" + "=" * 50)
-print("ШАГ 6: ПОСЛЕДОВАТЕЛЬНЫЙ ПЕРЕБОР ВСЕХ ТРЕХ ТИПОВ ОБЪЕКТОВ")
+print("ШАГ 7: ПОСЛЕДОВАТЕЛЬНЫЙ ПЕРЕБОР ВСЕХ ТРЕХ ТИПОВ ОБЪЕКТОВ")
 print("=" * 50)
 
 save_button_enabled = False
@@ -745,7 +788,7 @@ for type_index in [1, 2, 3]:
     print(f"ТИП {type_index} ИЗ 3: '{type_name}'")
     print(f"{'=' * 60}")
 
-    # 6.1. Выбираем тип по индексу
+    # 7.1. Выбираем тип по индексу
     if not select_object_type_by_index(type_index):
         print(f"✗ Не удалось выбрать тип {type_index}")
         test_results["type_attempts"].append({
@@ -757,7 +800,7 @@ for type_index in [1, 2, 3]:
 
     time.sleep(1)
 
-    # 6.2. Вводим адрес (только для первого типа, для остальных адрес уже есть)
+    # 7.2. Вводим адрес (только для первого типа, для остальных адрес уже есть)
     if test_results["deleted_address"] and not address_already_entered:
         if not enter_address(test_results["deleted_address"]):
             print("✗ Не удалось ввести адрес")
@@ -770,7 +813,7 @@ for type_index in [1, 2, 3]:
 
     time.sleep(1)
 
-    # 6.3. Получаем строки таблицы
+    # 7.3. Получаем строки таблицы
     rows = get_table_rows()
     test_results["rows_per_type"][type_name] = len(rows)
 
@@ -783,7 +826,7 @@ for type_index in [1, 2, 3]:
         })
         continue
 
-    # 6.4. Последовательно кликаем по каждой строке и проверяем адрес и кнопку
+    # 7.4. Последовательно кликаем по каждой строке и проверяем адрес и кнопку
     row_clicked_success = False
     for i, row in enumerate(rows, 1):
         print(f"\n  --- Строка {i} из {len(rows)} ---")
@@ -838,9 +881,9 @@ for type_index in [1, 2, 3]:
 
     print(f"\n--- Тип {type_index} - '{type_name}' не подошел, переходим к следующему ---")
 
-# 7. СОХРАНЕНИЕ ОБЪЕКТА (если кнопка стала активной)
+# 8. СОХРАНЕНИЕ ОБЪЕКТА (если кнопка стала активной)
 print("\n" + "=" * 50)
-print("ШАГ 7: СОХРАНЕНИЕ ОБЪЕКТА")
+print("ШАГ 8: СОХРАНЕНИЕ ОБЪЕКТА")
 print("=" * 50)
 
 if save_button_enabled and selected_type_name:
@@ -863,7 +906,7 @@ else:
         "text": error_msg
     })
 
-# 8. ИТОГОВЫЙ ОТЧЕТ
+# 9. ИТОГОВЫЙ ОТЧЕТ
 print("\n" + "=" * 80)
 print("ИТОГОВЫЙ ОТЧЕТ")
 print("=" * 80)
