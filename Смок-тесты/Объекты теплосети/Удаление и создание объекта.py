@@ -7,14 +7,14 @@
 3. Выбор случайного объекта и его удаление
 4. Создание нового объекта с тем же адресом
 5. Для КАЖДОГО из трех типов (Тепловой пункт, Присоединенное строение, Источник теплоснабжения):
-   - Выбор типа
+   - Выбор типа по индексу (1, 2, 3)
    - Ввод адреса (только для первого типа, потом адрес сохраняется)
    - Получение строк таблицы
    - Клик по каждой строке (с ожиданием 1 сек)
    - Проверка, что адрес в строке совпадает с введенным
    - Проверка активности кнопки "Сохранить"
 6. Если на каком-то типе кнопка стала активной и адрес совпадает - сохраняем объект
-7. Если после всех трех типов кнопка так и не стала активной или адреса не совпадают - выводим ошибку
+7. Если после всех трех типов кнопка так и не стала активной - выводим ошибку
 """
 
 from selenium import webdriver
@@ -61,23 +61,15 @@ CREATE_MENU_ITEM_SELECTOR = "html > div > div > div > ul > li:nth-child(1) > spa
 DELETE_MODAL_ADDRESS = "#deleteModalForm_fullAddress"
 DELETE_BUTTON = "#deleteModalForm > div.rt-form-footer > button.ant-btn.ant-btn-primary.ml-s"
 
-# Селекторы модального окна создания (из предоставленного HTML)
-TYPE_SELECTOR = "#saveAccountingObjectModalForm_typeCode"  # Поле ввода типа
+# Селекторы модального окна создания
+TYPE_FIELD = "#saveAccountingObjectModalForm > div.rt-form-body > div:nth-child(2) > div.ant-col.ant-col-16.ant-form-item-control > div > div > div"  # Поле типа
 TYPE_DROPDOWN = ".ant-select-dropdown"  # Выпадающий список
 TYPE_OPTION = ".ant-select-item-option"  # Опция в списке
 ADDRESS_INPUT = "#saveAccountingObjectModalForm_address"  # Поле ввода адреса
-TABLE_CONTAINER = "#saveAccountingObjectModalForm > div.rt-form-body > div.rt-table.addAccountingTable > div"  # Контейнер таблицы
 TABLE_ROWS = "#saveAccountingObjectModalForm > div.rt-form-body > div.rt-table.addAccountingTable .BaseTable__row"  # Строки таблицы
 TABLE_CELL_ADDRESS = "div.BaseTable__row-cell:nth-child(1) .textEllipsis"  # Ячейка с адресом (первый столбец)
 SAVE_BUTTON = "#saveAccountingObjectModalForm > div.rt-form-footer > button.ant-btn.ant-btn-primary"  # Кнопка сохранить
 INFO_TEXT = "#saveAccountingObjectModalForm > div.rt-form-body > div.checkAndInfoArea span"  # Информационный текст
-
-# Типы объектов для последовательного перебора
-OBJECT_TYPES = [
-    "Тепловой пункт",
-    "Присоединенное строение",
-    "Источник теплоснабжения"
-]
 
 # ============================================
 # ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
@@ -101,8 +93,7 @@ test_results = {
     "save_success": False,
     "final_type": None,
     "save_button_active_on_row": None,
-    "rows_per_type": {},  # Для хранения количества строк для каждого типа
-    "address_matches": {}  # Для хранения результатов проверки адресов
+    "rows_per_type": {}  # Для хранения количества строк для каждого типа
 }
 
 
@@ -469,20 +460,23 @@ def create_new_object():
     return True
 
 
-def select_object_type(type_name):
-    """Выбирает тип объекта"""
+def select_object_type_by_index(type_index):
+    """Выбирает тип объекта по индексу (1, 2 или 3)"""
     global current_action_context
-    current_action_context = f"Выбор типа объекта: '{type_name}'"
+    type_names = {1: "Тепловой пункт", 2: "Присоединенное строение", 3: "Источник теплоснабжения"}
+    type_name = type_names.get(type_index, f"Тип {type_index}")
+
+    current_action_context = f"Выбор типа объекта по индексу {type_index}: '{type_name}'"
 
     try:
-        # Находим и кликаем на поле выбора типа
-        type_input = wait.until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, TYPE_SELECTOR))
+        # Находим поле типа
+        type_field = wait.until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, TYPE_FIELD))
         )
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", type_input)
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", type_field)
         time.sleep(0.3)
-        type_input.click()
-        print(f"✓ Открыт список типов объектов")
+        type_field.click()
+        print(f"✓ Кликнули на поле типа для открытия списка")
         time.sleep(1)
 
         # Ждем появления выпадающего списка
@@ -490,27 +484,26 @@ def select_object_type(type_name):
             EC.presence_of_element_located((By.CSS_SELECTOR, TYPE_DROPDOWN))
         )
 
-        # Ищем опцию с нужным текстом
+        # Находим все опции
         options = dropdown.find_elements(By.CSS_SELECTOR, TYPE_OPTION)
-        for option in options:
-            try:
-                option_text = option.text.strip()
-                if type_name in option_text:
-                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", option)
-                    time.sleep(0.3)
-                    option.click()
-                    print(f"✓ Выбран тип: '{type_name}'")
-                    time.sleep(0.5)
-                    smart_wait_for_errors_disappear()
-                    return True
-            except:
-                continue
 
-        print(f"✗ Не найдена опция с типом '{type_name}'")
-        return False
+        if len(options) >= type_index:
+            # Выбираем опцию по индексу (индексация с 1)
+            option = options[type_index - 1]
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", option)
+            time.sleep(0.3)
+            option.click()
+            print(f"✓ Выбран тип {type_index}: '{type_name}'")
+
+            time.sleep(1)
+            smart_wait_for_errors_disappear()
+            return True
+        else:
+            print(f"✗ Не найдена опция с индексом {type_index}")
+            return False
 
     except Exception as e:
-        print(f"✗ Ошибка при выборе типа '{type_name}': {e}")
+        print(f"✗ Ошибка при выборе типа с индексом {type_index}: {e}")
         smart_wait_for_errors_disappear()
         return False
 
@@ -738,23 +731,27 @@ print("ШАГ 6: ПОСЛЕДОВАТЕЛЬНЫЙ ПЕРЕБОР ВСЕХ ТРЕ
 print("=" * 50)
 
 save_button_enabled = False
-selected_type = None
+selected_type_index = None
+selected_type_name = None
 active_row = None
 address_already_entered = False
 
-# Проходим по каждому типу из списка
-for type_index, object_type in enumerate(OBJECT_TYPES, 1):
+# Проходим по каждому индексу типа (1, 2, 3)
+for type_index in [1, 2, 3]:
+    type_names = {1: "Тепловой пункт", 2: "Присоединенное строение", 3: "Источник теплоснабжения"}
+    type_name = type_names[type_index]
+
     print(f"\n{'=' * 60}")
-    print(f"ТИП {type_index} ИЗ {len(OBJECT_TYPES)}: '{object_type}'")
+    print(f"ТИП {type_index} ИЗ 3: '{type_name}'")
     print(f"{'=' * 60}")
 
-    # 6.1. Выбираем тип
-    if not select_object_type(object_type):
-        print(f"✗ Не удалось выбрать тип '{object_type}'")
+    # 6.1. Выбираем тип по индексу
+    if not select_object_type_by_index(type_index):
+        print(f"✗ Не удалось выбрать тип {type_index}")
         test_results["type_attempts"].append({
-            "type": object_type,
+            "type": type_name,
             "success": False,
-            "error": "Не удалось выбрать тип"
+            "error": f"Не удалось выбрать тип с индексом {type_index}"
         })
         continue
 
@@ -775,12 +772,12 @@ for type_index, object_type in enumerate(OBJECT_TYPES, 1):
 
     # 6.3. Получаем строки таблицы
     rows = get_table_rows()
-    test_results["rows_per_type"][object_type] = len(rows)
+    test_results["rows_per_type"][type_name] = len(rows)
 
     if not rows:
-        print(f"  ⚠ Таблица добавления пуста для типа '{object_type}'")
+        print(f"  ⚠ Таблица добавления пуста для типа '{type_name}'")
         test_results["type_attempts"].append({
-            "type": object_type,
+            "type": type_name,
             "success": False,
             "error": "Таблица пуста"
         })
@@ -805,18 +802,19 @@ for type_index, object_type in enumerate(OBJECT_TYPES, 1):
         # Проверяем кнопку Сохранить
         if is_save_button_enabled():
             save_button_enabled = True
-            selected_type = object_type
+            selected_type_index = type_index
+            selected_type_name = type_name
             active_row = i
-            test_results["final_type"] = object_type
+            test_results["final_type"] = type_name
             test_results["save_button_active_on_row"] = i
             print(f"\n✓ КНОПКА 'СОХРАНИТЬ' СТАЛА АКТИВНОЙ!")
-            print(f"   Тип: '{object_type}'")
+            print(f"   Тип {type_index}: '{type_name}'")
             print(f"   Строка: {i}")
             print(f"   Адрес в строке совпадает с введенным")
 
             # Сохраняем успешную попытку
             test_results["type_attempts"].append({
-                "type": object_type,
+                "type": type_name,
                 "success": True,
                 "row": i,
                 "address_matched": True
@@ -827,33 +825,33 @@ for type_index, object_type in enumerate(OBJECT_TYPES, 1):
 
     # Если кнопка стала активной - сохраняем и выходим
     if save_button_enabled:
-        print(f"\n✓ Найден подходящий тип: '{selected_type}' на строке {active_row} с совпадающим адресом")
+        print(f"\n✓ Найден подходящий тип: {selected_type_index} - '{selected_type_name}' на строке {active_row} с совпадающим адресом")
         break
 
     # Если не удалось кликнуть ни на одну строку с совпадающим адресом
     if not row_clicked_success:
         test_results["type_attempts"].append({
-            "type": object_type,
+            "type": type_name,
             "success": False,
             "error": "Не найдено строк с совпадающим адресом или не удалось кликнуть"
         })
 
-    print(f"\n--- Тип '{object_type}' не подошел, переходим к следующему ---")
+    print(f"\n--- Тип {type_index} - '{type_name}' не подошел, переходим к следующему ---")
 
 # 7. СОХРАНЕНИЕ ОБЪЕКТА (если кнопка стала активной)
 print("\n" + "=" * 50)
 print("ШАГ 7: СОХРАНЕНИЕ ОБЪЕКТА")
 print("=" * 50)
 
-if save_button_enabled and selected_type:
-    print(f"✓ Кнопка активна на типе '{selected_type}', строка {active_row} (адрес совпадает)")
+if save_button_enabled and selected_type_name:
+    print(f"✓ Кнопка активна на типе {selected_type_index} - '{selected_type_name}', строка {active_row} (адрес совпадает)")
     if click_save():
-        print(f"✓ Объект успешно сохранен с типом '{selected_type}'")
+        print(f"✓ Объект успешно сохранен с типом '{selected_type_name}'")
     else:
-        print(f"✗ Не удалось сохранить объект с типом '{selected_type}'")
+        print(f"✗ Не удалось сохранить объект с типом '{selected_type_name}'")
 else:
     # Если после проверки ВСЕХ ТРЕХ типов кнопка так и не стала активной
-    error_msg = f"Кнопка 'Сохранить' так и не стала активной. Проверены ВСЕ типы: {', '.join(OBJECT_TYPES)}"
+    error_msg = f"Кнопка 'Сохранить' так и не стала активной. Проверены все 3 типа"
     print(f"✗ {error_msg}")
     current_action_context = "Ошибка: кнопка Сохранить неактивна после всех трех типов"
 
@@ -875,7 +873,7 @@ print("-" * 40)
 print(f"Выбранный индекс объекта: {test_results['selected_object_index']}")
 print(f"Адрес удаленного объекта: '{test_results['deleted_address']}'")
 
-print(f"\nПРОВЕРЕННЫЕ ТИПЫ (всего {len(test_results['type_attempts'])} из {len(OBJECT_TYPES)}):")
+print(f"\nПРОВЕРЕННЫЕ ТИПЫ (всего {len(test_results['type_attempts'])} из 3):")
 for i, attempt in enumerate(test_results["type_attempts"], 1):
     status = "✓" if attempt.get("success") else "✗"
     print(f"  {i}. {status} {attempt['type']}")
