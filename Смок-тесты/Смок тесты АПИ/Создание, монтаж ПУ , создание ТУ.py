@@ -16,6 +16,11 @@
 7. Демонтаж ПУ с объекта
 8. Проверка результатов
 
+Объект для монтажа:
+------------
+ID: ce26d69a-8f2a-4098-abdf-12f0d8d29e66
+Адрес: 12-я Новокузьминская ул., вл.6А
+
 Особенности:
 ------------
 - Генерация уникальных 7-значных серийных номеров
@@ -28,6 +33,7 @@
 - Сохранение токена для последующих запросов
 - Детальное логирование каждого шага
 - Пауза 0.5 секунды между операциями
+- Вывод адреса объекта во всех операциях
 '''
 
 import requests
@@ -50,8 +56,10 @@ class MeteringDeviceCase:
         self.MODEL_ID = "4931c4ad-4f5b-405c-992d-f7163b1b6535"
         self.MODEL_NAME = "420PC"
 
-        # ID объекта для монтажа/демонтажа
-        self.ACCOUNTING_OBJECT_ID = "c789807c-c1d8-415b-8f52-d416d59091e8"
+        # ID объекта для монтажа/демонтажа (НОВЫЙ)
+        self.ACCOUNTING_OBJECT_ID = "ce26d69a-8f2a-4098-abdf-12f0d8d29e66"
+        # Адрес объекта
+        self.ACCOUNTING_OBJECT_ADDRESS = "12-я Новокузьминская ул., вл.6А"
 
         # FillingStatus ID из примера
         self.FILLING_STATUS_ID = "d9d9a16a-3186-4921-a6f1-6e0817487804"
@@ -272,6 +280,7 @@ class MeteringDeviceCase:
         current_datetime = self.get_current_datetime()
         print(f"Дата монтажа: {current_datetime}")
         print(f"Объект для монтажа: {self.ACCOUNTING_OBJECT_ID}")
+        print(f"Адрес объекта: {self.ACCOUNTING_OBJECT_ADDRESS}")
         print(f"ID прибора: {device_id}")
         print(f"Серийный номер: {serial_number}")
 
@@ -364,7 +373,9 @@ class MeteringDeviceCase:
 
             if response.status_code == 200:
                 print(f"МОНТАЖ ВЫПОЛНЕН УСПЕШНО (200) [{response_time:.2f} сек]")
-                print(f"  Прибор {serial_number} смонтирован на объект {self.ACCOUNTING_OBJECT_ID}")
+                print(f"  Прибор {serial_number} смонтирован на объект:")
+                print(f"    ID: {self.ACCOUNTING_OBJECT_ID}")
+                print(f"    Адрес: {self.ACCOUNTING_OBJECT_ADDRESS}")
                 self.results[device_type]["mount"] = True
                 return True, response_time
             else:
@@ -397,6 +408,8 @@ class MeteringDeviceCase:
             "status": self.POINT_STATUSES
         }
 
+        print(f"Объект поиска: {self.ACCOUNTING_OBJECT_ID}")
+        print(f"Адрес объекта: {self.ACCOUNTING_OBJECT_ADDRESS}")
         print(f"Поиск точки учета для прибора: {device_id}")
 
         try:
@@ -417,6 +430,7 @@ class MeteringDeviceCase:
                             print(f"  ID точки: {point_id}")
                             print(f"  Тип: {point.get('typeName')}")
                             print(f"  Статус: {point.get('statusName')}")
+                            print(f"  Объект: {self.ACCOUNTING_OBJECT_ADDRESS}")
 
                             self.results[device_type]["point_id"] = point_id
                             self.results[device_type]["point_get"] = True
@@ -478,6 +492,8 @@ class MeteringDeviceCase:
 
         print(f"ID прибора: {device_id}")
         print(f"Тип точки учета: {type_info['pointTypeCode']}")
+        print(f"Объект: {self.ACCOUNTING_OBJECT_ID}")
+        print(f"Адрес объекта: {self.ACCOUNTING_OBJECT_ADDRESS}")
 
         try:
             start_time = time.time()
@@ -486,7 +502,8 @@ class MeteringDeviceCase:
 
             if response.status_code == 200:
                 print(f"ТОЧКА УЧЕТА СОЗДАНА УСПЕШНО (200) [{response_time:.2f} сек]")
-                print(f"  ID точки учета будет получен отдельным запросом")
+                print(f"  Точка учета для прибора {device_id} создана")
+                print(f"  на объекте: {self.ACCOUNTING_OBJECT_ADDRESS}")
                 self.results[device_type]["point_create"] = True
                 return True, response_time
             else:
@@ -521,6 +538,8 @@ class MeteringDeviceCase:
         }
 
         print(f"ID точки учета для удаления: {point_id}")
+        print(f"Объект: {self.ACCOUNTING_OBJECT_ID}")
+        print(f"Адрес объекта: {self.ACCOUNTING_OBJECT_ADDRESS}")
 
         try:
             start_time = time.time()
@@ -529,6 +548,7 @@ class MeteringDeviceCase:
 
             if response.status_code == 200:
                 print(f"ТОЧКА УЧЕТА УДАЛЕНА УСПЕШНО (200) [{response_time:.2f} сек]")
+                print(f"  Точка учета {point_id} удалена с объекта {self.ACCOUNTING_OBJECT_ADDRESS}")
                 self.results[device_type]["point_delete"] = True
                 return True, response_time
             else:
@@ -558,6 +578,7 @@ class MeteringDeviceCase:
 
         print(f"Дата демонтажа: {current_datetime}")
         print(f"Объект для демонтажа: {self.ACCOUNTING_OBJECT_ID}")
+        print(f"Адрес объекта: {self.ACCOUNTING_OBJECT_ADDRESS}")
         print(f"ID прибора: {device_id}")
         print(f"Серийный номер: {serial_number}")
         print(f"Object name: {object_name}")
@@ -580,7 +601,9 @@ class MeteringDeviceCase:
 
             if response.status_code == 200:
                 print(f"ДЕМОНТАЖ ВЫПОЛНЕН УСПЕШНО (200) [{response_time:.2f} сек]")
-                print(f"  Прибор {serial_number} демонтирован с объекта {self.ACCOUNTING_OBJECT_ID}")
+                print(f"  Прибор {serial_number} демонтирован с объекта:")
+                print(f"    ID: {self.ACCOUNTING_OBJECT_ID}")
+                print(f"    Адрес: {self.ACCOUNTING_OBJECT_ADDRESS}")
 
                 try:
                     response_data = response.json()
@@ -608,6 +631,7 @@ class MeteringDeviceCase:
         print(f"\n{'=' * 70}")
         print(f"ЗАПУСК ПОЛНОГО ЦИКЛА ДЛЯ: {type_name}")
         print(f"{'=' * 70}")
+        print(f"Объект монтажа: {self.ACCOUNTING_OBJECT_ADDRESS}")
 
         # Шаг 1: Создание ПУ
         create_success, device_id, serial_number, create_time = self.create_device(device_type)
@@ -661,6 +685,7 @@ class MeteringDeviceCase:
         print(f"  Серийный номер: {serial_number}")
         print(f"  ID прибора: {device_id}")
         print(f"  ID точки учета: {point_id if point_id else 'не получен'}")
+        print(f"  Объект: {self.ACCOUNTING_OBJECT_ADDRESS}")
         print(f"{'-' * 70}")
 
     def run_full_case(self):
@@ -669,7 +694,9 @@ class MeteringDeviceCase:
         print("ЗАПУСК ПОЛНОГО КЕЙСА: ТЕПЛОСЧЕТЧИК И ВОДОМЕР С ТОЧКАМИ УЧЕТА")
         print("=" * 80)
         print(f"Время старта: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"Объект учета: {self.ACCOUNTING_OBJECT_ID}")
+        print(f"\nОБЪЕКТ УЧЕТА:")
+        print(f"  ID: {self.ACCOUNTING_OBJECT_ID}")
+        print(f"  Адрес: {self.ACCOUNTING_OBJECT_ADDRESS}")
 
         start_time = time.time()
 
@@ -696,6 +723,9 @@ class MeteringDeviceCase:
         total_time = time.time() - start_time
 
         print(f"Общее время выполнения: {total_time:.2f} сек")
+        print(f"\nОБЪЕКТ УЧЕТА:")
+        print(f"  ID: {self.ACCOUNTING_OBJECT_ID}")
+        print(f"  Адрес: {self.ACCOUNTING_OBJECT_ADDRESS}")
         print(f"\nРЕЗУЛЬТАТЫ ПО ТИПАМ ПРИБОРОВ:")
 
         for device_type, type_info in self.DEVICE_TYPES.items():
@@ -734,16 +764,17 @@ class MeteringDeviceCase:
 
         print(f"\nИТОГ:")
         if heat_ok and water_ok:
-            print("  ПОЛНЫЙ ЦИКЛ ВЫПОЛНЕН УСПЕШНО ДЛЯ ОБОИХ ТИПОВ ПРИБОРОВ")
-            print("  Все приборы созданы, смонтированы, созданы и удалены точки учета, приборы демонтированы")
+            print(f"  ПОЛНЫЙ ЦИКЛ ВЫПОЛНЕН УСПЕШНО ДЛЯ ОБОИХ ТИПОВ ПРИБОРОВ")
+            print(f"  На объекте: {self.ACCOUNTING_OBJECT_ADDRESS}")
+            print(f"  Все приборы созданы, смонтированы, созданы и удалены точки учета, приборы демонтированы")
         elif heat_ok:
-            print("  ТЕПЛОСЧЕТЧИК: полный цикл успешен")
+            print(f"  ТЕПЛОСЧЕТЧИК: полный цикл успешен на объекте {self.ACCOUNTING_OBJECT_ADDRESS}")
             print("  ВОДОМЕР: есть ошибки в выполнении цикла")
         elif water_ok:
-            print("  ВОДОМЕР: полный цикл успешен")
+            print(f"  ВОДОМЕР: полный цикл успешен на объекте {self.ACCOUNTING_OBJECT_ADDRESS}")
             print("  ТЕПЛОСЧЕТЧИК: есть ошибки в выполнении цикла")
         else:
-            print("  ЕСТЬ ОШИБКИ В ВЫПОЛНЕНИИ ЦИКЛОВ")
+            print(f"  ЕСТЬ ОШИБКИ В ВЫПОЛНЕНИИ ЦИКЛОВ НА ОБЪЕКТЕ {self.ACCOUNTING_OBJECT_ADDRESS}")
 
         print("=" * 80)
 
