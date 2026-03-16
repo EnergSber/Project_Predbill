@@ -5,7 +5,7 @@
 Скрипт для тестирования формирования отчетов через RabbitMQ
 Постепенное добавление новых отчетов
 
-Текущая версия: 8 отчетов
+Текущая версия: 10 отчетов
 - Отчёт о проверке ведомостей (обобщенный)
 - Отчёт о проверке ведомостей (детальный)
 - Отчёт об обработке ведомостей за период
@@ -14,6 +14,8 @@
 - Отчет о количестве строений с ПУ
 - Отчет по приборам учета с просроченной поверкой
 - Отчет по сверке ОДПУ с данными ГИС ЖКХ
+- Отчет зафиксированных конфликтов данных между показаниями приборов учета и отключенными установками
+- Анализ показаний ОДУУ за 3 периода
 
 Последовательность действий:
 ------------
@@ -176,6 +178,34 @@ class ReportTester:
                 "endpoint": "/api/bear/script/sync/rabbitReportSender",
                 "status_endpoint": "/api/bear/script/sync/getReportTaskStatus",
                 "has_period": False,
+                "district_field": "aoCode",
+                "district_type": "code",
+                "active": True
+            },
+
+            # Отчет о конфликтах показаний (с периодом и кодом округа)
+            "report_readings_conflicts": {
+                "id": "683f19a5-9117-40e4-a539-4175da210548",
+                "name": "Отчет зафиксированных конфликтов данных между показаниями приборов учета и отключенными установками",
+                "config": "reportMdReadingsShutdownConflicts",
+                "group": "Конфликты",
+                "endpoint": "/api/bear/script/sync/rabbitReportSender",
+                "status_endpoint": "/api/bear/script/sync/getReportTaskStatus",
+                "has_period": True,
+                "district_field": "aoCode",
+                "district_type": "code",
+                "active": True
+            },
+
+            # Отчет анализ показаний ОДУУ за 3 периода (с периодом и кодом округа)
+            "report_oduu_analysis": {
+                "id": "35c9a3d7-907c-47a5-99a7-74d9020d7305",
+                "name": "Анализ показаний ОДУУ за 3 периода",
+                "config": "reportMdReadingsThreeYearAnalysis",
+                "group": "Аналитика",
+                "endpoint": "/api/bear/script/sync/rabbitReportSender",
+                "status_endpoint": "/api/bear/script/sync/getReportTaskStatus",
+                "has_period": True,
                 "district_field": "aoCode",
                 "district_type": "code",
                 "active": True
