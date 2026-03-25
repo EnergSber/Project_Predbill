@@ -5,7 +5,7 @@
 Скрипт для тестирования формирования отчетов через RabbitMQ
 Постепенное добавление новых отчетов
 
-Текущая версия: 10 отчетов
+Текущая версия: 14 отчетов
 - Отчёт о проверке ведомостей (обобщенный)
 - Отчёт о проверке ведомостей (детальный)
 - Отчёт об обработке ведомостей за период
@@ -16,6 +16,10 @@
 - Отчет по сверке ОДПУ с данными ГИС ЖКХ
 - Отчет зафиксированных конфликтов данных между показаниями приборов учета и отключенными установками
 - Анализ показаний ОДУУ за 3 периода
+- Отчет по вводу показаний ПУ в разрезе муниципальных районов
+- Отчет о снятии показаний по точкам учета
+- Отчет по температуре наружного воздуха
+- Отчет о замене приборов учета МВК
 
 Последовательность действий:
 ------------
@@ -68,7 +72,7 @@ class ReportTester:
             "7": "САО", "8": "ТАО", "9": "МО", "10": "НАО", "11": "СВАО", "12": "ЗАО", "13": "ЮВАО"
         }
 
-        # Форматы выгрузки для отчетов (оставляем для возможного расширения)
+        # Форматы выгрузки для отчетов
         self.REPORT_FORMATS = ["addressable", "summary", "detailed"]
 
         # Конфигурация отчетов
@@ -209,6 +213,64 @@ class ReportTester:
                 "district_field": "aoCode",
                 "district_type": "code",
                 "active": True
+            },
+
+            # ========== НОВЫЕ ОТЧЕТЫ ==========
+            # Отчет по вводу показаний ПУ в разрезе муниципальных районов
+            "report_metering_devices_by_municipal": {
+                "id": "e3b7b84d-abd3-4142-b08e-292597d3a717",
+                "name": "Отчет по вводу показаний ПУ в разрезе муниципальных районов",
+                "config": "reportMeteringDevicesByMunicipalDistricts",
+                "group": "Показания",
+                "endpoint": "/api/bear/script/sync/rabbitReportSender",
+                "status_endpoint": "/api/bear/script/sync/getReportTaskStatus",
+                "has_period": True,
+                "has_named_list": True,  # чекбокс "перечень ПУ"
+                "district_field": "aoDistrictCode",
+                "district_type": "code",
+                "active": True
+            },
+
+            # Отчет о снятии показаний по точкам учета
+            "report_metering_points_readings": {
+                "id": "4bdbea64-4a54-44de-b2ff-489a36b1a42a",
+                "name": "Отчет о снятии показаний по точкам учета",
+                "config": "reportMeteringPointsReadings",
+                "group": "Показания",
+                "endpoint": "/api/bear/script/sync/rabbitReportSender",
+                "status_endpoint": "/api/bear/script/sync/getReportTaskStatus",
+                "has_period": True,
+                "district_field": "aoDistrictCode",
+                "district_type": "code",
+                "active": True
+            },
+
+            # Отчет по температуре наружного воздуха
+            "report_polygon_temperature": {
+                "id": "ca5081fa-c479-4f4d-aa84-7188d4561864",
+                "name": "Отчет по температуре наружного воздуха",
+                "config": "reportPolygonTemperature",
+                "group": "Погода",
+                "endpoint": "/api/bear/script/sync/rabbitReportSender",
+                "status_endpoint": "/api/bear/script/sync/getReportTaskStatus",
+                "has_period": True,
+                "district_field": "aoDistrictCode",
+                "district_type": "code",
+                "active": True
+            },
+
+            # Отчет о замене приборов учета МВК
+            "report_replacement_metering_devices_mvk": {
+                "id": "269ef220-015e-4854-85ed-bd4a10d7e30c",
+                "name": "Отчет о замене приборов учета МВК",
+                "config": "reportReplacementMeteringDevicesMVK",
+                "group": "Замена ПУ",
+                "endpoint": "/api/bear/script/sync/rabbitReportSender",
+                "status_endpoint": "/api/bear/script/sync/getReportTaskStatus",
+                "has_period": True,
+                "district_field": "aoDistrictName",  # Использует название округа
+                "district_type": "name",
+                "active": True
             }
         }
 
@@ -324,6 +386,7 @@ class ReportTester:
         district = None
         district_display = None  # Для отображения (название)
         report_format = None
+        named_list = None
 
         if report.get('has_period', True):
             period = self.get_random_period()
@@ -341,6 +404,10 @@ class ReportTester:
                 report_format = report['fixed_format']  # Используем фиксированный формат
             else:
                 report_format = self.get_random_report_format()  # Случайный выбор из доступных
+
+        # Для отчета по вводу показаний ПУ есть чекбокс "перечень ПУ"
+        if report.get('has_named_list', False):
+            named_list = True  # Всегда включаем для этого отчета
 
         # Базовый events для всех отчетов
         report_events = {
@@ -383,6 +450,19 @@ class ReportTester:
         if report_format:
             report_filters["reportFormat"] = report_format
 
+        # Добавляем чекбокс "перечень ПУ" если нужно
+        if named_list:
+            report_filters["namedListOfMD"] = named_list
+
+        # Для отчета по температуре наружного воздуха нужны dateFrom и dateUp
+        if report_key == "report_polygon_temperature" and period:
+            # Преобразуем период в dateFrom и dateUp
+            period_date = datetime.strptime(period, '%Y-%m-%d')
+            date_from = period_date.replace(day=1).strftime('%Y-%m-%d')
+            date_up = period_date.strftime('%Y-%m-%d')
+            report_filters["dateFrom"] = date_from
+            report_filters["dateUp"] = date_up
+
         # Payload для отчета
         payload = {
             "dataRoles": self.DATA_ROLES,
@@ -404,6 +484,8 @@ class ReportTester:
         print(f"  Округ: {district_display}")
         if report_format:
             print(f"  Формат: {report_format}")
+        if named_list:
+            print(f"  Перечень ПУ: Включен")
 
         try:
             start_time = time.time()
@@ -427,6 +509,8 @@ class ReportTester:
                     request_data["district_code"] = district[0]
                 if report_format:
                     request_data["format"] = report_format
+                if named_list:
+                    request_data["named_list"] = named_list
 
                 return True, report_task_id, response_time, request_data
             else:
@@ -635,6 +719,7 @@ class ReportTester:
             "group": report["group"],
             "has_period": report.get('has_period', True),
             "has_format": report.get('has_format', False),
+            "has_named_list": report.get('has_named_list', False),
             "district_type": report.get('district_type', 'name'),
             "success": False,
             "report_task_id": None,
@@ -646,6 +731,7 @@ class ReportTester:
             "district": None,
             "format": None,
             "district_code": None,
+            "named_list": None,
             "errors": []
         }
 
@@ -658,6 +744,7 @@ class ReportTester:
             result["district"] = request_data.get('district')
             result["format"] = request_data.get('format')
             result["district_code"] = request_data.get('district_code')
+            result["named_list"] = request_data.get('named_list')
 
         if not request_success or not report_task_id:
             result["error"] = "Не удалось отправить запрос на формирование отчета"
@@ -703,6 +790,8 @@ class ReportTester:
                 print(f"  Округ: {result['district']}")
             if result.get('format'):
                 print(f"  Формат: {result['format']}")
+            if result.get('named_list'):
+                print(f"  Перечень ПУ: Включен")
             print(f"  Время запроса: {request_time:.2f} сек")
             print(f"  Время ожидания: {wait_time:.1f} сек")
             print(f"  Общее время: {result['total_time']:.1f} сек")
@@ -715,6 +804,8 @@ class ReportTester:
                 print(f"  Округ: {result['district']}")
             if result.get('format'):
                 print(f"  Формат: {result['format']}")
+            if result.get('named_list'):
+                print(f"  Перечень ПУ: Включен")
             print(f"  Время запроса: {request_time:.2f} сек")
             print(f"  Время ожидания: {wait_time:.1f} сек")
             if result["errors"]:
@@ -747,7 +838,8 @@ class ReportTester:
         for key, report in active_reports:
             period_info = "с периодом" if report.get('has_period', True) else "без периода"
             format_info = f", формат: {report.get('fixed_format', 'случайный')}" if report.get('has_format') else ""
-            print(f"  • {report['name']} - {period_info}{format_info}")
+            named_list_info = ", с перечнем ПУ" if report.get('has_named_list') else ""
+            print(f"  • {report['name']} - {period_info}{format_info}{named_list_info}")
 
         # Шаг 1: Авторизация
         if not self.authenticate():
@@ -814,6 +906,8 @@ class ReportTester:
                     print(f"   Округ: {r['district']}")
                 if r.get('format'):
                     print(f"   Формат: {r['format']}")
+                if r.get('named_list'):
+                    print(f"   Перечень ПУ: Включен")
                 print(f"   reportTaskId: {r['report_task_id'] or 'не получен'}")
                 print(f"   Ошибка: {r.get('error', 'Неизвестная ошибка')}")
 
@@ -845,8 +939,9 @@ class ReportTester:
                 period_info = f" (период: {r['period']})" if r.get('period') else ""
                 district_info = f", округ: {r['district']}" if r.get('district') else ""
                 format_info = f", формат: {r['format']}" if r.get('format') else ""
+                named_list_info = ", перечень ПУ: да" if r.get('named_list') else ""
                 time_info = f" - {r['wait_time']:.1f} сек"
-                print(f"  • {r['name']}{period_info}{district_info}{format_info}{time_info}")
+                print(f"  • {r['name']}{period_info}{district_info}{format_info}{named_list_info}{time_info}")
 
         print("\n" + "=" * 80)
 
