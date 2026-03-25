@@ -5,7 +5,7 @@
 Скрипт для тестирования формирования отчетов через RabbitMQ
 Постепенное добавление новых отчетов
 
-Текущая версия: 14 отчетов
+Текущая версия: 21 отчет
 - Отчёт о проверке ведомостей (обобщенный)
 - Отчёт о проверке ведомостей (детальный)
 - Отчёт об обработке ведомостей за период
@@ -20,6 +20,13 @@
 - Отчет о снятии показаний по точкам учета
 - Отчет по температуре наружного воздуха
 - Отчет о замене приборов учета МВК
+- Отчет по запитке
+- Отчет о переданных ведомостях за период
+- Отчет о передаче показаний в АС «Мосводоканал»
+- Активные показания ПУ не идущие в расчёт
+- Отчет о результатах передачи данных через ЕЛК для водомеров
+- Отчет по Сим-картам
+- Отчет по УСПД
 
 Последовательность действий:
 ------------
@@ -153,7 +160,7 @@ class ReportTester:
                 "status_endpoint": "/api/bear/script/sync/getReportTaskStatus",
                 "has_period": True,
                 "has_format": True,
-                "fixed_format": "addressable",  # Фиксированный формат - адресный перечень
+                "fixed_format": "addressable",
                 "district_field": "aoCode",
                 "district_type": "code",
                 "active": True
@@ -215,7 +222,6 @@ class ReportTester:
                 "active": True
             },
 
-            # ========== НОВЫЕ ОТЧЕТЫ ==========
             # Отчет по вводу показаний ПУ в разрезе муниципальных районов
             "report_metering_devices_by_municipal": {
                 "id": "e3b7b84d-abd3-4142-b08e-292597d3a717",
@@ -225,7 +231,7 @@ class ReportTester:
                 "endpoint": "/api/bear/script/sync/rabbitReportSender",
                 "status_endpoint": "/api/bear/script/sync/getReportTaskStatus",
                 "has_period": True,
-                "has_named_list": True,  # чекбокс "перечень ПУ"
+                "has_named_list": True,
                 "district_field": "aoDistrictCode",
                 "district_type": "code",
                 "active": True
@@ -268,8 +274,107 @@ class ReportTester:
                 "endpoint": "/api/bear/script/sync/rabbitReportSender",
                 "status_endpoint": "/api/bear/script/sync/getReportTaskStatus",
                 "has_period": True,
-                "district_field": "aoDistrictName",  # Использует название округа
+                "district_field": "aoDistrictName",
                 "district_type": "name",
+                "active": True
+            },
+
+            # ========== НОВЫЕ ОТЧЕТЫ ==========
+            # Отчет по запитке (с режимом "all")
+            "report_supply_network": {
+                "id": "7731218d-aafe-49cf-81c9-ba749588f6aa",
+                "name": "Отчет по запитке",
+                "config": "reportSupplyNetwork",
+                "group": "Запитка",
+                "endpoint": "/api/bear/script/sync/rabbitReportSender",
+                "status_endpoint": "/api/bear/script/sync/getReportTaskStatus",
+                "has_period": False,
+                "has_report_mode": True,
+                "fixed_report_mode": "all",
+                "district_field": "aoCode",
+                "district_type": "code",
+                "active": True
+            },
+
+            # Отчет о переданных ведомостях за период (с startMonth и finishMonth)
+            "report_transferred_statements": {
+                "id": "cc04db32-f0ee-4ab6-aadd-2c6ebc6f3828",
+                "name": "Отчет о переданных ведомостях за период",
+                "config": "reportTransferredStatementsByPeriod",
+                "group": "Ведомости",
+                "endpoint": "/api/bear/script/sync/rabbitReportSender",
+                "status_endpoint": "/api/bear/script/sync/getReportTaskStatus",
+                "has_period_range": True,
+                "district_field": "aoCode",
+                "district_type": "code",
+                "active": True
+            },
+
+            # Отчет о передаче показаний в АС «Мосводоканал»
+            "report_transmission_readings_mvk": {
+                "id": "09ee1ef5-d3b6-40ff-bbd7-fb9ed2408801",
+                "name": "Отчет о передаче показаний в АС «Мосводоканал»",
+                "config": "reportTransmissionReadingsMVK",
+                "group": "Показания",
+                "endpoint": "/api/bear/script/sync/rabbitReportSender",
+                "status_endpoint": "/api/bear/script/sync/getReportTaskStatus",
+                "has_period": True,
+                "district_field": "aoDistrictName",
+                "district_type": "name",
+                "active": True
+            },
+
+            # Активные показания ПУ не идущие в расчёт
+            "report_unsuitable_md_readings": {
+                "id": "c5921572-5706-4cb8-a6a8-762b9ee61736",
+                "name": "Активные показания ПУ не идущие в расчёт",
+                "config": "reportUnsuitableMdReadings",
+                "group": "Показания",
+                "endpoint": "/api/bear/script/sync/rabbitReportSender",
+                "status_endpoint": "/api/bear/script/sync/getReportTaskStatus",
+                "has_period": True,
+                "district_field": "aoCode",
+                "district_type": "code",
+                "active": True
+            },
+
+            # Отчет о результатах передачи данных через ЕЛК для водомеров
+            "report_vodomer_elk": {
+                "id": "2965c0c6-2818-45b8-9bf2-e1f153f81061",
+                "name": "Отчет о результатах передачи данных через ЕЛК для водомеров",
+                "config": "reportVodomerELK",
+                "group": "Водомеры",
+                "endpoint": "/api/bear/script/sync/rabbitReportSender",
+                "status_endpoint": "/api/bear/script/sync/getReportTaskStatus",
+                "has_period_range": True,
+                "district_field": "aoDistrictCode",
+                "district_type": "code",
+                "active": True
+            },
+
+            # Отчет по Сим-картам (без фильтров)
+            "report_sim_cards": {
+                "id": "67fa616b-69b6-425e-a400-bcec3753c00d",
+                "name": "Отчет по Сим-картам",
+                "config": "simCardsPredBill",
+                "group": "Сим-карты",
+                "endpoint": "/api/bear/script/sync/rabbitReportSender",
+                "status_endpoint": "/api/bear/script/sync/getReportTaskStatus",
+                "has_period": False,
+                "has_district": False,
+                "active": True
+            },
+
+            # Отчет по УСПД (без фильтров)
+            "report_transmission_devices": {
+                "id": "a1d15f84-7bcc-4b83-9ce6-c874a473203c",
+                "name": "Отчет по УСПД",
+                "config": "transmissionDevicesPredBill",
+                "group": "УСПД",
+                "endpoint": "/api/bear/script/sync/rabbitReportSender",
+                "status_endpoint": "/api/bear/script/sync/getReportTaskStatus",
+                "has_period": False,
+                "has_district": False,
                 "active": True
             }
         }
@@ -319,6 +424,26 @@ class ReportTester:
         periods = self.get_available_periods()
         return random.choice(periods)
 
+    def get_random_period_range(self) -> Tuple[str, str]:
+        """
+        Возвращает случайный диапазон периодов (startMonth, finishMonth)
+        startMonth не может быть младше finishMonth
+        """
+        periods = self.get_available_periods()
+        if len(periods) < 2:
+            # Если мало периодов, возвращаем один и тот же
+            period = self.get_random_period()
+            return period, period
+
+        # Сортируем периоды
+        sorted_periods = sorted(periods)
+        # Выбираем случайный start индекс
+        start_idx = random.randint(0, len(sorted_periods) - 2)
+        # Выбираем случайный finish индекс, который >= start_idx
+        finish_idx = random.randint(start_idx, len(sorted_periods) - 1)
+
+        return sorted_periods[start_idx], sorted_periods[finish_idx]
+
     def get_random_district_name(self) -> List[str]:
         """Возвращает случайный административный округ (название)"""
         return [random.choice(self.AO_DISTRICT_NAMES)]
@@ -326,10 +451,6 @@ class ReportTester:
     def get_random_district_code(self) -> List[str]:
         """Возвращает случайный административный округ (код)"""
         return [random.choice(self.AO_DISTRICT_CODES)]
-
-    def get_random_report_format(self) -> str:
-        """Возвращает случайный формат выгрузки (запасной метод)"""
-        return random.choice(self.REPORT_FORMATS)
 
     def get_district_name_by_code(self, code: str) -> str:
         """Возвращает название округа по его коду"""
@@ -383,31 +504,45 @@ class ReportTester:
 
         # Выбираем случайные параметры для отчета
         period = None
+        start_month = None
+        finish_month = None
         district = None
-        district_display = None  # Для отображения (название)
+        district_display = None
         report_format = None
         named_list = None
+        report_mode = None
 
-        if report.get('has_period', True):
+        # Обработка периода
+        if report.get('has_period_range', False):
+            start_month, finish_month = self.get_random_period_range()
+        elif report.get('has_period', True):
             period = self.get_random_period()
 
-        if report['district_type'] == 'name':
-            district = self.get_random_district_name()
-            district_display = district[0]  # Название
-        else:  # code
-            code = self.get_random_district_code()[0]
-            district = [code]  # Для запроса отправляем код
-            district_display = self.get_district_name_by_code(code)  # Для отображения название
+        # Обработка округа
+        if report.get('has_district', True):
+            if report['district_type'] == 'name':
+                district = self.get_random_district_name()
+                district_display = district[0]
+            else:  # code
+                code = self.get_random_district_code()[0]
+                district = [code]
+                district_display = self.get_district_name_by_code(code)
 
+        # Обработка формата
         if report.get('has_format', False):
             if report.get('fixed_format'):
-                report_format = report['fixed_format']  # Используем фиксированный формат
+                report_format = report['fixed_format']
             else:
-                report_format = self.get_random_report_format()  # Случайный выбор из доступных
+                report_format = self.get_random_report_format()
 
-        # Для отчета по вводу показаний ПУ есть чекбокс "перечень ПУ"
+        # Обработка чекбокса "перечень ПУ"
         if report.get('has_named_list', False):
-            named_list = True  # Всегда включаем для этого отчета
+            named_list = True
+
+        # Обработка режима отчета
+        if report.get('has_report_mode', False):
+            if report.get('fixed_report_mode'):
+                report_mode = report['fixed_report_mode']
 
         # Базовый events для всех отчетов
         report_events = {
@@ -439,12 +574,21 @@ class ReportTester:
             "dataRoles": self.DATA_ROLES
         }
 
-        # Добавляем округ
-        report_filters[report['district_field']] = district
+        # Добавляем округ если нужно
+        if district:
+            report_filters[report['district_field']] = district
 
         # Добавляем период если нужно
         if period:
             report_filters["periodMonth"] = period
+
+        # Добавляем диапазон периодов если нужно
+        if start_month and finish_month:
+            # Преобразуем в ISO формат с временем
+            start_dt = datetime.strptime(start_month, '%Y-%m-%d')
+            finish_dt = datetime.strptime(finish_month, '%Y-%m-%d')
+            report_filters["startMonth"] = start_dt.replace(hour=20, minute=59, second=59).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+            report_filters["finishMonth"] = finish_dt.replace(hour=20, minute=59, second=59).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
 
         # Добавляем формат если нужно
         if report_format:
@@ -454,14 +598,22 @@ class ReportTester:
         if named_list:
             report_filters["namedListOfMD"] = named_list
 
+        # Добавляем режим отчета если нужно
+        if report_mode:
+            report_filters["reportMode"] = report_mode
+
         # Для отчета по температуре наружного воздуха нужны dateFrom и dateUp
         if report_key == "report_polygon_temperature" and period:
-            # Преобразуем период в dateFrom и dateUp
             period_date = datetime.strptime(period, '%Y-%m-%d')
             date_from = period_date.replace(day=1).strftime('%Y-%m-%d')
             date_up = period_date.strftime('%Y-%m-%d')
             report_filters["dateFrom"] = date_from
             report_filters["dateUp"] = date_up
+
+        # Для отчета о результатах передачи данных через ЕЛК для водомеров
+        if report_key == "report_vodomer_elk" and start_month and finish_month:
+            report_filters["dateFrom"] = start_month
+            report_filters["dateUp"] = finish_month
 
         # Payload для отчета
         payload = {
@@ -481,11 +633,16 @@ class ReportTester:
         print(f"  Отчет: {report['name']}")
         if period:
             print(f"  Период: {period}")
-        print(f"  Округ: {district_display}")
+        if start_month and finish_month:
+            print(f"  Период (диапазон): {start_month} - {finish_month}")
+        if district:
+            print(f"  Округ: {district_display}")
         if report_format:
             print(f"  Формат: {report_format}")
         if named_list:
             print(f"  Перечень ПУ: Включен")
+        if report_mode:
+            print(f"  Режим: {report_mode}")
 
         try:
             start_time = time.time()
@@ -503,14 +660,18 @@ class ReportTester:
                 # Сохраняем параметры запроса в результат
                 request_data = {
                     "period": period,
+                    "start_month": start_month,
+                    "finish_month": finish_month,
                     "district": district_display,
                 }
-                if report.get('district_type') == 'code':
-                    request_data["district_code"] = district[0]
+                if district:
+                    request_data["district_code"] = district[0] if isinstance(district, list) else district
                 if report_format:
                     request_data["format"] = report_format
                 if named_list:
                     request_data["named_list"] = named_list
+                if report_mode:
+                    request_data["report_mode"] = report_mode
 
                 return True, report_task_id, response_time, request_data
             else:
@@ -633,7 +794,6 @@ class ReportTester:
             attempts += 1
             elapsed = time.time() - start_wait
 
-            # Проверяем не превышен ли таймаут
             if elapsed > self.MAX_WAIT_TIME:
                 error_details = {
                     "stage": "waiting",
@@ -647,7 +807,6 @@ class ReportTester:
                 print(f"\n✗ ПРЕВЫШЕНО ВРЕМЯ ОЖИДАНИЯ ({self.MAX_WAIT_TIME // 60} минут)")
                 return False, elapsed, None, error_details
 
-            # Проверяем статус
             success, status, check_time, response_data, error_details = self.check_report_status(report_key, report_task_id)
 
             if not success:
@@ -657,19 +816,16 @@ class ReportTester:
                 time.sleep(self.POLL_INTERVAL)
                 continue
 
-            # Показываем первые два статуса для информации
             if not first_status_shown:
                 print(f"  Попытка {attempts}: статус = {status}")
                 first_status_shown = True
             elif attempts <= 2:
                 print(f"  Попытка {attempts}: статус = {status}")
 
-            # Если статус изменился на PROCESSING, показываем это один раз
             if status == "PROCESSING" and not processing_started and attempts > 2:
                 print(f"  Формирование отчета...", end="", flush=True)
                 processing_started = True
 
-            # Если статус изменился и это финальный статус, показываем
             if status != last_status and attempts > 2 and status in ["READY", "ERROR"]:
                 if processing_started:
                     print(f" готово!")
@@ -693,17 +849,12 @@ class ReportTester:
                 print(f"\n✗ ОШИБКА ФОРМИРОВАНИЯ ОТЧЕТА")
                 return False, elapsed, response_data, error_details
 
-            # Ждем перед следующей попыткой
             time.sleep(self.POLL_INTERVAL)
 
     def test_report(self, report_key: str) -> Dict[str, Any]:
-        """
-        Полный тест отчета со случайными параметрами
-        Возвращает результаты теста
-        """
+        """Полный тест отчета со случайными параметрами"""
         report = self.REPORTS[report_key]
 
-        # Пропускаем неактивные отчеты
         if not report.get('active', False):
             return None
 
@@ -718,8 +869,11 @@ class ReportTester:
             "name": report["name"],
             "group": report["group"],
             "has_period": report.get('has_period', True),
+            "has_period_range": report.get('has_period_range', False),
             "has_format": report.get('has_format', False),
             "has_named_list": report.get('has_named_list', False),
+            "has_report_mode": report.get('has_report_mode', False),
+            "has_district": report.get('has_district', True),
             "district_type": report.get('district_type', 'name'),
             "success": False,
             "report_task_id": None,
@@ -728,36 +882,37 @@ class ReportTester:
             "total_time": 0,
             "status": None,
             "period": None,
+            "start_month": None,
+            "finish_month": None,
             "district": None,
             "format": None,
             "district_code": None,
             "named_list": None,
+            "report_mode": None,
             "errors": []
         }
 
-        # Шаг 1: Отправка запроса на формирование отчета
         request_success, report_task_id, request_time, request_data = self.send_report_request(report_key)
         result["request_time"] = request_time
 
         if request_data:
             result["period"] = request_data.get('period')
+            result["start_month"] = request_data.get('start_month')
+            result["finish_month"] = request_data.get('finish_month')
             result["district"] = request_data.get('district')
             result["format"] = request_data.get('format')
             result["district_code"] = request_data.get('district_code')
             result["named_list"] = request_data.get('named_list')
+            result["report_mode"] = request_data.get('report_mode')
 
         if not request_success or not report_task_id:
             result["error"] = "Не удалось отправить запрос на формирование отчета"
             if isinstance(request_data, dict) and 'error_type' in request_data:
-                result["errors"].append({
-                    "stage": "request",
-                    "details": request_data
-                })
+                result["errors"].append({"stage": "request", "details": request_data})
             return result
 
         result["report_task_id"] = report_task_id
 
-        # Шаг 2: Ожидание готовности отчета
         wait_success, wait_time, final_data, wait_error = self.wait_for_report_ready(report_key, report_task_id, report["name"])
         result["wait_time"] = wait_time
         result["total_time"] = time.time() - start_time
@@ -771,12 +926,8 @@ class ReportTester:
             result["status"] = "TIMEOUT/ERROR"
             result["error"] = "Отчет не сформирован за 10 минут"
             if wait_error:
-                result["errors"].append({
-                    "stage": "waiting",
-                    "details": wait_error
-                })
+                result["errors"].append({"stage": "waiting", "details": wait_error})
 
-        # Финальный вывод
         print("\n" + "=" * 60)
         print("РЕЗУЛЬТАТ ТЕСТА")
         print("=" * 60)
@@ -786,12 +937,16 @@ class ReportTester:
             print(f"  reportTaskId: {report_task_id}")
             if result.get('period'):
                 print(f"  Период: {result['period']}")
+            if result.get('start_month') and result.get('finish_month'):
+                print(f"  Период (диапазон): {result['start_month']} - {result['finish_month']}")
             if result.get('district'):
                 print(f"  Округ: {result['district']}")
             if result.get('format'):
                 print(f"  Формат: {result['format']}")
             if result.get('named_list'):
                 print(f"  Перечень ПУ: Включен")
+            if result.get('report_mode'):
+                print(f"  Режим: {result['report_mode']}")
             print(f"  Время запроса: {request_time:.2f} сек")
             print(f"  Время ожидания: {wait_time:.1f} сек")
             print(f"  Общее время: {result['total_time']:.1f} сек")
@@ -800,12 +955,16 @@ class ReportTester:
             print(f"  reportTaskId: {report_task_id}")
             if result.get('period'):
                 print(f"  Период: {result['period']}")
+            if result.get('start_month') and result.get('finish_month'):
+                print(f"  Период (диапазон): {result['start_month']} - {result['finish_month']}")
             if result.get('district'):
                 print(f"  Округ: {result['district']}")
             if result.get('format'):
                 print(f"  Формат: {result['format']}")
             if result.get('named_list'):
                 print(f"  Перечень ПУ: Включен")
+            if result.get('report_mode'):
+                print(f"  Режим: {result['report_mode']}")
             print(f"  Время запроса: {request_time:.2f} сек")
             print(f"  Время ожидания: {wait_time:.1f} сек")
             if result["errors"]:
@@ -816,7 +975,6 @@ class ReportTester:
                     print(f"  Сообщение: {error.get('message')}")
 
         print("=" * 60)
-
         return result
 
     def run_all_tests(self):
@@ -825,23 +983,29 @@ class ReportTester:
         print("ЗАПУСК ТЕСТИРОВАНИЯ ФОРМИРОВАНИЯ ОТЧЕТОВ")
         print("=" * 80)
 
-        # Показываем доступные периоды
         available_periods = self.get_available_periods()
         if available_periods:
             print(f"\nДоступные периоды для тестирования ({len(available_periods)} шт.):")
-            for p in available_periods:
+            for p in available_periods[:5]:  # Показываем только первые 5
                 print(f"  • {p}")
+            if len(available_periods) > 5:
+                print(f"  ... и еще {len(available_periods) - 5}")
 
-        # Показываем список активных отчетов
         active_reports = [(k, v) for k, v in self.REPORTS.items() if v.get('active', False)]
         print(f"\nАктивные отчеты ({len(active_reports)} шт.):")
         for key, report in active_reports:
-            period_info = "с периодом" if report.get('has_period', True) else "без периода"
+            period_info = ""
+            if report.get('has_period_range', False):
+                period_info = "с диапазоном периодов"
+            elif report.get('has_period', True):
+                period_info = "с периодом"
+            else:
+                period_info = "без периода"
+            district_info = "" if not report.get('has_district', True) else "с округом"
             format_info = f", формат: {report.get('fixed_format', 'случайный')}" if report.get('has_format') else ""
             named_list_info = ", с перечнем ПУ" if report.get('has_named_list') else ""
-            print(f"  • {report['name']} - {period_info}{format_info}{named_list_info}")
+            print(f"  • {report['name']} - {period_info} {district_info}{format_info}{named_list_info}")
 
-        # Шаг 1: Авторизация
         if not self.authenticate():
             print("✗ ТЕСТИРОВАНИЕ ПРЕРВАНО: Ошибка авторизации")
             return
@@ -849,7 +1013,6 @@ class ReportTester:
         start_time = time.time()
         self.results = []
 
-        # Тестируем каждый активный отчет
         for i, (report_key, report) in enumerate(active_reports):
             print(f"\n{'=' * 80}")
             print(f"ТЕСТ {i+1} ИЗ {len(active_reports)}")
@@ -859,12 +1022,10 @@ class ReportTester:
             if result:
                 self.results.append(result)
 
-            # Пауза между отчетами (1 секунда, кроме последнего)
             if i < len(active_reports) - 1:
                 print(f"\nПауза {self.PAUSE_BETWEEN_TESTS} секунда перед следующим отчетом...")
                 time.sleep(self.PAUSE_BETWEEN_TESTS)
 
-        # Финальный отчет
         self._print_final_report(start_time)
 
     def _print_final_report(self, start_time: float):
@@ -891,7 +1052,6 @@ class ReportTester:
         else:
             print(f"  Общее время: {minutes} минут {seconds:.1f} секунд")
 
-        # Если есть ошибки - детальный разбор
         failed_reports = [r for r in self.results if not r["success"]]
         if failed_reports:
             print(f"\n" + "=" * 80)
@@ -902,12 +1062,16 @@ class ReportTester:
                 print(f"\n❌ {r['name']}")
                 if r.get('period'):
                     print(f"   Период: {r['period']}")
+                if r.get('start_month') and r.get('finish_month'):
+                    print(f"   Период (диапазон): {r['start_month']} - {r['finish_month']}")
                 if r.get('district'):
                     print(f"   Округ: {r['district']}")
                 if r.get('format'):
                     print(f"   Формат: {r['format']}")
                 if r.get('named_list'):
                     print(f"   Перечень ПУ: Включен")
+                if r.get('report_mode'):
+                    print(f"   Режим: {r['report_mode']}")
                 print(f"   reportTaskId: {r['report_task_id'] or 'не получен'}")
                 print(f"   Ошибка: {r.get('error', 'Неизвестная ошибка')}")
 
@@ -916,37 +1080,34 @@ class ReportTester:
                     for i, error in enumerate(r['errors'], 1):
                         print(f"     {i}. Этап: {error['stage']}")
                         details = error['details']
-
                         if details.get('status_code'):
                             print(f"        HTTP статус: {details['status_code']}")
                         if details.get('error_type'):
                             print(f"        Тип ошибки: {details['error_type']}")
                         if details.get('message'):
                             print(f"        Сообщение: {details['message']}")
-                        if details.get('response_body'):
-                            print(f"        Тело ответа: {details['response_body'][:200]}")
                         if details.get('stage') == 'waiting' and details.get('attempts'):
                             print(f"        Попыток проверки: {details['attempts']}")
                             print(f"        Последний статус: {details.get('last_status', 'неизвестно')}")
                             print(f"        Время ожидания: {details.get('wait_time', 0):.1f} сек")
 
-        # Если ошибок нет - простой список отчетов
         else:
             print(f"\n✅ ВСЕ ТЕСТЫ ПРОЙДЕНЫ УСПЕШНО")
             print(f"\nПРОТЕСТИРОВАННЫЕ ОТЧЕТЫ ({total} шт.):\n")
 
             for r in self.results:
                 period_info = f" (период: {r['period']})" if r.get('period') else ""
+                range_info = f" (диапазон: {r['start_month']} - {r['finish_month']})" if r.get('start_month') and r.get('finish_month') else ""
                 district_info = f", округ: {r['district']}" if r.get('district') else ""
                 format_info = f", формат: {r['format']}" if r.get('format') else ""
                 named_list_info = ", перечень ПУ: да" if r.get('named_list') else ""
+                mode_info = f", режим: {r['report_mode']}" if r.get('report_mode') else ""
                 time_info = f" - {r['wait_time']:.1f} сек"
-                print(f"  • {r['name']}{period_info}{district_info}{format_info}{named_list_info}{time_info}")
+                print(f"  • {r['name']}{period_info}{range_info}{district_info}{format_info}{named_list_info}{mode_info}{time_info}")
 
         print("\n" + "=" * 80)
 
 
 if __name__ == "__main__":
-    # Создаем тестер и запускаем
     tester = ReportTester(base_url="http://10.5.121.74")
     tester.run_all_tests()
