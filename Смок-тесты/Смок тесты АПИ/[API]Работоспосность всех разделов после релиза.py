@@ -40,7 +40,7 @@ import requests
 import time
 from typing import Dict, Any, Optional, Tuple, List
 from datetime import datetime, timedelta
-
+from config import USERNAME, PASSWORD
 
 class SystemTester:
     def __init__(self, base_url: str = "http://10.5.121.74"):
@@ -152,12 +152,13 @@ class SystemTester:
         except Exception as e:
             return False, 500, response_time  # Другая ошибка
 
+
     def test_authentication(self) -> Tuple[bool, int, float]:
         """Авторизация"""
         data = {
             "grant_type": "password",
-            "username": "predbill",
-            "password": "predbill"
+            "username": USERNAME,
+            "password": PASSWORD
         }
 
         success, status, response_time = self.make_request(
