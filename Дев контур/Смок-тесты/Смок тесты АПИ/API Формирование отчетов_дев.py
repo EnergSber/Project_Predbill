@@ -33,7 +33,7 @@
 1. Авторизация в системе
 2. Для каждого отчета из конфигурации:
    - Выбираются случайные параметры (период и/или округ)
-   - Отправка запроса на формирование отчета
+   - Отправка запроса на формирование отчета с retry-механизмом
    - Получение reportTaskId из ответа
    - Циклический опрос статуса отчета каждую секунду
    - Ожидание статуса READY (максимум 10 минут)
@@ -60,7 +60,13 @@ class ReportTester:
         # Максимальное время ожидания отчета (10 минут)
         self.MAX_WAIT_TIME = 600  # секунд
         self.POLL_INTERVAL = 1     # секунда
-        self.PAUSE_BETWEEN_TESTS = 1  # пауза между отчетами 1 секунда
+        self.PAUSE_BETWEEN_TESTS = 3  # пауза между отчетами 3 секунды
+        self.SHORT_WAIT_TIME = 300  # 5 минут для статусов QUEUED/NOT_FOUND
+        self.REQUEST_TIMEOUT = 45  # 45 секунд на подключение
+
+        # Retry механизмы
+        self.MAX_RETRIES = 3
+        self.RETRY_DELAY = 5  # секунд между попытками
 
         # Список административных округов (названия)
         self.AO_DISTRICT_NAMES = [
@@ -471,7 +477,7 @@ class ReportTester:
 
         try:
             start_time = time.time()
-            response = self.session.post(url, data=data, timeout=(15, 30))
+            response = self.session.post(url, data=data, timeout=(self.REQUEST_TIMEOUT, 30))
             response_time = time.time() - start_time
 
             if response.status_code == 200:
@@ -488,61 +494,87 @@ class ReportTester:
             print(f"ОШИБКА: {str(e)}")
             return False
 
-    def send_report_request(self, report_key: str) -> Tuple[bool, Optional[str], float, Optional[Dict]]:
+    def send_report_request(self, report_key: str, retry_count: int = 0, saved_params: Dict = None,
+                            is_conflict_retry: bool = False) -> Tuple[bool, Optional[str], float, Optional[Dict]]:
         """
-        Отправка запроса на формирование отчета
-        Возвращает: (успех, reportTaskId, время выполнения, детали ошибки)
+        Отправка запроса на формирование отчета с retry-механизмом
+        - При серверных ошибках (500, 502, 503, 504) используем те же параметры
+        - При конфликте (409) - генерируем новые параметры
         """
         report = self.REPORTS[report_key]
 
         print("\n" + "=" * 60)
         print(f"ЭТАП 2: ОТПРАВКА ЗАПРОСА НА ФОРМИРОВАНИЕ ОТЧЕТА")
+        if retry_count > 0:
+            if is_conflict_retry:
+                print(f"ПОВТОРНАЯ ПОПЫТКА {retry_count}/{self.MAX_RETRIES} (НОВЫЕ ПАРАМЕТРЫ)")
+            else:
+                print(f"ПОВТОРНАЯ ПОПЫТКА {retry_count}/{self.MAX_RETRIES}")
         print("=" * 60)
 
         url = f"{self.base_url}{report['endpoint']}"
         error_details = None
 
-        # Выбираем случайные параметры для отчета
-        period = None
-        start_month = None
-        finish_month = None
-        district = None
-        district_display = None
-        report_format = None
-        named_list = None
-        report_mode = None
+        # Определяем, нужно ли генерировать новые параметры
+        generate_new_params = True
 
-        # Обработка периода
-        if report.get('has_period_range', False):
-            start_month, finish_month = self.get_random_period_range()
-        elif report.get('has_period', True):
-            period = self.get_random_period()
+        # Если это повторная попытка НЕ из-за конфликта - используем сохраненные параметры
+        if saved_params and not is_conflict_retry:
+            period = saved_params.get('period')
+            start_month = saved_params.get('start_month')
+            finish_month = saved_params.get('finish_month')
+            district = saved_params.get('district')
+            district_display = saved_params.get('district_display')
+            report_format = saved_params.get('report_format')
+            named_list = saved_params.get('named_list')
+            report_mode = saved_params.get('report_mode')
+            generate_new_params = False
+        else:
+            # Первая попытка или конфликт - генерируем новые случайные параметры
+            period = None
+            start_month = None
+            finish_month = None
+            district = None
+            district_display = None
+            report_format = None
+            named_list = None
+            report_mode = None
 
-        # Обработка округа
-        if report.get('has_district', True):
-            if report['district_type'] == 'name':
-                district = self.get_random_district_name()
-                district_display = district[0]
-            else:  # code
-                code = self.get_random_district_code()[0]
-                district = [code]
-                district_display = self.get_district_name_by_code(code)
+            # Обработка периода
+            if report.get('has_period_range', False):
+                start_month, finish_month = self.get_random_period_range()
+            elif report.get('has_period', True):
+                period = self.get_random_period()
 
-        # Обработка формата
-        if report.get('has_format', False):
-            if report.get('fixed_format'):
-                report_format = report['fixed_format']
-            else:
-                report_format = self.get_random_report_format()
+            # Обработка округа
+            if report.get('has_district', True):
+                if report['district_type'] == 'name':
+                    district = self.get_random_district_name()
+                    district_display = district[0]
+                else:  # code
+                    code = self.get_random_district_code()[0]
+                    district = [code]
+                    district_display = self.get_district_name_by_code(code)
 
-        # Обработка чекбокса "перечень ПУ"
-        if report.get('has_named_list', False):
-            named_list = True
+            # Обработка формата
+            if report.get('has_format', False):
+                if report.get('fixed_format'):
+                    report_format = report['fixed_format']
+                else:
+                    report_format = self.get_random_report_format()
 
-        # Обработка режима отчета
-        if report.get('has_report_mode', False):
-            if report.get('fixed_report_mode'):
-                report_mode = report['fixed_report_mode']
+            # Обработка чекбокса "перечень ПУ"
+            if report.get('has_named_list', False):
+                named_list = True
+
+            # Обработка режима отчета
+            if report.get('has_report_mode', False):
+                if report.get('fixed_report_mode'):
+                    report_mode = report['fixed_report_mode']
+
+        # Если генерируем новые параметры и это повторная попытка, выводим новые параметры
+        if generate_new_params and retry_count > 0:
+            print(f"  Генерируем новые параметры для отчета...")
 
         # Базовый events для всех отчетов
         report_events = {
@@ -587,8 +619,10 @@ class ReportTester:
             # Преобразуем в ISO формат с временем
             start_dt = datetime.strptime(start_month, '%Y-%m-%d')
             finish_dt = datetime.strptime(finish_month, '%Y-%m-%d')
-            report_filters["startMonth"] = start_dt.replace(hour=20, minute=59, second=59).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
-            report_filters["finishMonth"] = finish_dt.replace(hour=20, minute=59, second=59).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+            report_filters["startMonth"] = start_dt.replace(hour=20, minute=59, second=59).strftime(
+                '%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+            report_filters["finishMonth"] = finish_dt.replace(hour=20, minute=59, second=59).strftime(
+                '%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
 
         # Добавляем формат если нужно
         if report_format:
@@ -644,10 +678,29 @@ class ReportTester:
         if report_mode:
             print(f"  Режим: {report_mode}")
 
+        # Сохраняем текущие параметры для возможных повторных попыток
+        current_params = {
+            'period': period,
+            'start_month': start_month,
+            'finish_month': finish_month,
+            'district': district,
+            'district_display': district_display,
+            'report_format': report_format,
+            'named_list': named_list,
+            'report_mode': report_mode
+        }
+
         try:
             start_time = time.time()
-            response = self.session.post(url, json=payload, timeout=(15, 30))
+            response = self.session.post(url, json=payload, timeout=(self.REQUEST_TIMEOUT, 180))
             response_time = time.time() - start_time
+
+            # Получаем полный ответ сервера для детальной диагностики
+            try:
+                response_body = response.json()
+                response_body_str = json.dumps(response_body, ensure_ascii=False, indent=2)
+            except:
+                response_body_str = response.text
 
             if response.status_code == 200:
                 response_data = response.json()
@@ -674,46 +727,123 @@ class ReportTester:
                     request_data["report_mode"] = report_mode
 
                 return True, report_task_id, response_time, request_data
+
+            else:
+                # Детальный вывод ошибки
+                print(f"✗ ОШИБКА ОТПРАВКИ ЗАПРОСА: статус {response.status_code} [{response_time:.2f} сек]")
+                print(f"  Полный ответ сервера:")
+                print(f"  {response_body_str}")
+
+                # Обработка разных кодов ошибок
+                if response.status_code in [500, 502, 503, 504]:
+                    # Серверные ошибки - повторяем с теми же параметрами
+                    if retry_count < self.MAX_RETRIES:
+                        print(
+                            f"  ⚠ Серверная ошибка {response.status_code}, повторная попытка через {self.RETRY_DELAY} сек... (попытка {retry_count + 1}/{self.MAX_RETRIES})")
+                        time.sleep(self.RETRY_DELAY)
+                        return self.send_report_request(report_key, retry_count + 1, current_params,
+                                                        is_conflict_retry=False)
+                    else:
+                        error_details = {
+                            "endpoint": report['endpoint'],
+                            "status_code": response.status_code,
+                            "response_body": response_body_str,
+                            "payload": payload,
+                            "period": period,
+                            "district": district_display,
+                            "retry_count": retry_count
+                        }
+                        return False, None, response_time, error_details
+
+                elif response.status_code == 409:
+                    # Конфликт - отчет уже в очереди, повторяем с НОВЫМИ параметрами
+                    if retry_count < self.MAX_RETRIES:
+                        print(
+                            f"  ⚠ Конфликт (отчет уже в очереди), повторная попытка с новыми параметрами через {self.RETRY_DELAY} сек... (попытка {retry_count + 1}/{self.MAX_RETRIES})")
+                        time.sleep(self.RETRY_DELAY)
+                        return self.send_report_request(report_key, retry_count + 1, None, is_conflict_retry=True)
+                    else:
+                        error_details = {
+                            "endpoint": report['endpoint'],
+                            "status_code": response.status_code,
+                            "response_body": response_body_str,
+                            "period": period,
+                            "district": district_display,
+                            "message": "Отчет уже в очереди на формирование",
+                            "retry_count": retry_count
+                        }
+                        return False, None, response_time, error_details
+
+                elif response.status_code == 400:
+                    # Неверный запрос - не повторяем
+                    error_details = {
+                        "endpoint": report['endpoint'],
+                        "status_code": response.status_code,
+                        "response_body": response_body_str,
+                        "period": period,
+                        "district": district_display,
+                        "message": "Неверный формат запроса"
+                    }
+                    return False, None, response_time, error_details
+
+                elif response.status_code == 401:
+                    # Неавторизован - не повторяем
+                    error_details = {
+                        "endpoint": report['endpoint'],
+                        "status_code": response.status_code,
+                        "response_body": response_body_str,
+                        "message": "Ошибка авторизации"
+                    }
+                    return False, None, response_time, error_details
+
+                else:
+                    # Другие ошибки - не повторяем
+                    error_details = {
+                        "endpoint": report['endpoint'],
+                        "status_code": response.status_code,
+                        "response_body": response_body_str,
+                        "period": period,
+                        "district": district_display
+                    }
+                    if report_format:
+                        error_details["format"] = report_format
+                    return False, None, response_time, error_details
+
+        except requests.exceptions.Timeout:
+            if retry_count < self.MAX_RETRIES:
+                print(
+                    f"  ⚠ Таймаут, повторная попытка через {self.RETRY_DELAY} сек... (попытка {retry_count + 1}/{self.MAX_RETRIES})")
+                time.sleep(self.RETRY_DELAY)
+                return self.send_report_request(report_key, retry_count + 1, current_params, is_conflict_retry=False)
             else:
                 error_details = {
                     "endpoint": report['endpoint'],
-                    "status_code": response.status_code,
-                    "response_body": response.text[:500],
-                    "payload": payload,
+                    "error_type": "TIMEOUT",
+                    "message": f"Превышен таймаут соединения ({self.REQUEST_TIMEOUT} сек) после {self.MAX_RETRIES} попыток",
                     "period": period,
-                    "district": district_display
+                    "district": district_display,
+                    "retry_count": retry_count
                 }
-                if report_format:
-                    error_details["format"] = report_format
-                print(f"✗ ОШИБКА ОТПРАВКИ ЗАПРОСА: статус {response.status_code} [{response_time:.2f} сек]")
-                print(f"  Тело ответа: {response.text[:200]}")
-                return False, None, response_time, error_details
-
-        except requests.exceptions.Timeout:
-            error_details = {
-                "endpoint": report['endpoint'],
-                "error_type": "TIMEOUT",
-                "message": "Превышен таймаут соединения (15 сек)",
-                "period": period,
-                "district": district_display
-            }
-            if report_format:
-                error_details["format"] = report_format
-            print(f"✗ ТАЙМАУТ ПРИ ОТПРАВКЕ ЗАПРОСА")
-            return False, None, 0, error_details
+                print(f"✗ ТАЙМАУТ ПРИ ОТПРАВКЕ ЗАПРОСА (после {self.MAX_RETRIES} попыток)")
+                return False, None, 0, error_details
 
         except requests.exceptions.ConnectionError:
-            error_details = {
-                "endpoint": report['endpoint'],
-                "error_type": "CONNECTION_ERROR",
-                "message": "Ошибка подключения к серверу",
-                "period": period,
-                "district": district_display
-            }
-            if report_format:
-                error_details["format"] = report_format
-            print(f"✗ ОШИБКА ПОДКЛЮЧЕНИЯ")
-            return False, None, 0, error_details
+            if retry_count < self.MAX_RETRIES:
+                print(
+                    f"  ⚠ Ошибка подключения, повторная попытка через {self.RETRY_DELAY} сек... (попытка {retry_count + 1}/{self.MAX_RETRIES})")
+                time.sleep(self.RETRY_DELAY)
+                return self.send_report_request(report_key, retry_count + 1, current_params, is_conflict_retry=False)
+            else:
+                error_details = {
+                    "endpoint": report['endpoint'],
+                    "error_type": "CONNECTION_ERROR",
+                    "message": "Ошибка подключения к серверу после нескольких попыток",
+                    "period": period,
+                    "district": district_display,
+                    "retry_count": retry_count
+                }
+                print(f"✗ ОШИБКА ПОДКЛЮЧЕНИЯ (после {self.MAX_RETRIES} попыток)")
+                return False, None, 0, error_details
 
         except Exception as e:
             error_details = {
@@ -745,7 +875,7 @@ class ReportTester:
 
         try:
             start_time = time.time()
-            response = self.session.post(url, json=payload, timeout=(15, 30))
+            response = self.session.post(url, json=payload, timeout=(self.REQUEST_TIMEOUT, 30))
             response_time = time.time() - start_time
 
             if response.status_code == 200:
@@ -774,7 +904,8 @@ class ReportTester:
     def wait_for_report_ready(self, report_key: str, report_task_id: str, report_name: str) -> Tuple[bool, float, Optional[Dict], Optional[Dict]]:
         """
         Ожидание готовности отчета (статус READY)
-        Максимальное время ожидания: 10 минут
+        - Если на 2-й попытке статус QUEUED или NOT_FOUND - ждем 5 минут
+        - В остальных случаях - ждем 10 минут
         Возвращает: (успех, общее время ожидания, финальные данные, детали ошибки)
         """
         print("\n" + "=" * 60)
@@ -782,31 +913,42 @@ class ReportTester:
         print(f"Отчет: {report_name}")
         print("=" * 60)
 
-        print(f"Максимальное время ожидания: {self.MAX_WAIT_TIME // 60} минут")
+        # Флаг для определения сокращенного времени ожидания
+        use_short_timeout = False
+        SHORT_TIMEOUT = self.SHORT_WAIT_TIME  # 5 минут
+        FULL_TIMEOUT = self.MAX_WAIT_TIME  # 10 минут
+
+        print(f"Максимальное время ожидания: {FULL_TIMEOUT // 60} минут")
 
         start_wait = time.time()
         attempts = 0
         last_status = None
         first_status_shown = False
         processing_started = False
+        short_timeout_triggered = False
 
         while True:
             attempts += 1
             elapsed = time.time() - start_wait
 
-            if elapsed > self.MAX_WAIT_TIME:
+            # Проверяем не превышен ли таймаут
+            current_timeout = SHORT_TIMEOUT if use_short_timeout else FULL_TIMEOUT
+            if elapsed > current_timeout:
+                timeout_minutes = current_timeout // 60
                 error_details = {
                     "stage": "waiting",
                     "error_type": "TIMEOUT",
-                    "message": f"Превышено максимальное время ожидания ({self.MAX_WAIT_TIME // 60} минут)",
+                    "message": f"Превышено максимальное время ожидания ({timeout_minutes} минут)",
                     "attempts": attempts,
                     "last_status": last_status,
                     "report_task_id": report_task_id,
-                    "wait_time": elapsed
+                    "wait_time": elapsed,
+                    "timeout_type": "short" if use_short_timeout else "full"
                 }
-                print(f"\n✗ ПРЕВЫШЕНО ВРЕМЯ ОЖИДАНИЯ ({self.MAX_WAIT_TIME // 60} минут)")
+                print(f"\n✗ ПРЕВЫШЕНО ВРЕМЯ ОЖИДАНИЯ ({timeout_minutes} минут)")
                 return False, elapsed, None, error_details
 
+            # Проверяем статус
             success, status, check_time, response_data, error_details = self.check_report_status(report_key, report_task_id)
 
             if not success:
@@ -816,16 +958,40 @@ class ReportTester:
                 time.sleep(self.POLL_INTERVAL)
                 continue
 
+            # Проверяем статус на 2-й попытке для активации сокращенного таймаута
+            if attempts == 2 and not short_timeout_triggered:
+                if status in ["QUEUED", "NOT_FOUND"]:
+                    use_short_timeout = True
+                    short_timeout_triggered = True
+                    print(f"\n  ⚠ Обнаружен статус '{status}' на 2-й попытке. Сокращаем время ожидания до 5 минут.")
+                    # Обновляем таймаут для текущей итерации
+                    if elapsed > SHORT_TIMEOUT:
+                        error_details = {
+                            "stage": "waiting",
+                            "error_type": "TIMEOUT",
+                            "message": f"Превышено максимальное время ожидания (5 минут)",
+                            "attempts": attempts,
+                            "last_status": status,
+                            "report_task_id": report_task_id,
+                            "wait_time": elapsed,
+                            "timeout_type": "short"
+                        }
+                        print(f"\n✗ ПРЕВЫШЕНО ВРЕМЯ ОЖИДАНИЯ (5 минут)")
+                        return False, elapsed, None, error_details
+
+            # Показываем первые два статуса для информации
             if not first_status_shown:
                 print(f"  Попытка {attempts}: статус = {status}")
                 first_status_shown = True
             elif attempts <= 2:
                 print(f"  Попытка {attempts}: статус = {status}")
 
+            # Если статус изменился на PROCESSING, показываем это один раз
             if status == "PROCESSING" and not processing_started and attempts > 2:
                 print(f"  Формирование отчета...", end="", flush=True)
                 processing_started = True
 
+            # Если статус изменился и это финальный статус, показываем
             if status != last_status and attempts > 2 and status in ["READY", "ERROR"]:
                 if processing_started:
                     print(f" готово!")
@@ -1023,7 +1189,7 @@ class ReportTester:
                 self.results.append(result)
 
             if i < len(active_reports) - 1:
-                print(f"\nПауза {self.PAUSE_BETWEEN_TESTS} секунда перед следующим отчетом...")
+                print(f"\nПауза {self.PAUSE_BETWEEN_TESTS} секунды перед следующим отчетом...")
                 time.sleep(self.PAUSE_BETWEEN_TESTS)
 
         self._print_final_report(start_time)
